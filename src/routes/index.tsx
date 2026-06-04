@@ -1,29 +1,206 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Star, Sparkles, Heart } from "lucide-react";
+import { ProductCard, type Product } from "@/components/ProductCard";
+import {
+  HandmadeIllustration,
+  KawaiiIllustration,
+  PackagingIllustration,
+  CakeIllustration,
+} from "@/components/illustrations";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Peach Craft — Handmade fake cakes & kawaii clay crafts" },
+      { name: "description", content: "Adorable handmade fake cakes, air-dry clay figures and kawaii storage boxes. Sculpted by hand with love." },
+      { property: "og:title", content: "Peach Craft — Handmade with love" },
+      { property: "og:description", content: "Adorable handmade fake cakes, air-dry clay figures and kawaii storage boxes." },
     ],
   }),
-  component: Index,
+  component: HomePage,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+const products: Product[] = [
+  { id: "1", name: "Strawberry Dream Cake", price: 680, emoji: "🍰", swatch: "blush", soldOut: true },
+  { id: "2", name: "Matcha Slice Box", price: 520, emoji: "🍵", swatch: "sage", tag: "New" },
+  { id: "3", name: "Peach Bear Clay Figure", price: 450, emoji: "🧸", swatch: "peach", soldOut: true },
+  { id: "4", name: "Cake Storage Box", price: 780, emoji: "🎁", swatch: "blush", tag: "Bestseller" },
+];
+
+function HomePage() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <>
+      {/* HERO */}
+      <section
+        className="relative overflow-hidden"
+        style={{ backgroundImage: "var(--gradient-hero)" }}
+      >
+        {/* Decorative floating shapes */}
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="absolute top-10 left-1/3 w-3 h-3 rounded-full bg-blush animate-float" style={{ animationDelay: "0.5s" }} />
+          <div className="absolute top-32 right-1/4 w-2 h-2 rounded-full bg-sage animate-float" style={{ animationDelay: "1.2s" }} />
+          <div className="absolute bottom-24 left-1/4 text-2xl animate-float" style={{ animationDelay: "0s" }}>✦</div>
+          <div className="absolute top-20 right-10 text-xl animate-float text-blush" style={{ animationDelay: "2s" }}>✿</div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-12 items-center relative">
+          <div>
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/80 backdrop-blur text-xs font-semibold text-brown shadow-card">
+              <Sparkles className="w-3.5 h-3.5 text-blush" aria-hidden /> New drop · Strawberry Dream Series
+            </span>
+            <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.05] text-brown">
+              Handcrafted with love,
+              <br />
+              <em className="not-italic text-primary font-display italic">made to delight</em>{" "}
+              <span aria-hidden>🍑</span>
+            </h1>
+            <p className="mt-6 text-lg text-foreground/85 max-w-md leading-relaxed">
+              Welcome to Peach Craft! I make adorable fake cakes, kawaii storage boxes, and air-dry clay creations — each one sculpted by hand with a whole lot of heart.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/shop"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all"
+              >
+                Shop the Collection <span aria-hidden>🍰</span>
+              </Link>
+              <Link
+                to="/about"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
+                About Me <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Trust row */}
+            <dl className="mt-10 grid grid-cols-3 gap-6 max-w-md">
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-foreground/60">Happy buyers</dt>
+                <dd className="mt-1 font-display text-2xl text-brown">1,200+</dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-foreground/60">Rating</dt>
+                <dd className="mt-1 font-display text-2xl text-brown inline-flex items-center gap-1">
+                  4.9 <Star className="w-4 h-4 fill-blush text-blush" aria-hidden />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-foreground/60">Made by</dt>
+                <dd className="mt-1 font-display text-2xl text-brown">1 pair of hands</dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* Hero illustration with floating cards */}
+          <div className="relative mx-auto w-full max-w-lg">
+            <div className="relative aspect-square">
+              <div className="absolute inset-6 rounded-full bg-card/40 backdrop-blur-sm shadow-soft" />
+              <CakeIllustration className="relative w-full h-full animate-float" />
+            </div>
+
+            {/* Floating mini-cards */}
+            <div className="hidden sm:flex absolute -left-4 top-12 items-center gap-2 px-3 py-2 rounded-2xl bg-card shadow-card animate-float" style={{ animationDelay: "1s" }}>
+              <span className="grid place-items-center w-9 h-9 rounded-xl bg-blush text-lg" aria-hidden>🍓</span>
+              <div className="text-xs">
+                <p className="font-semibold text-brown">New restock</p>
+                <p className="text-foreground/60">3 pieces left</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex absolute -right-2 bottom-10 items-center gap-2 px-3 py-2 rounded-2xl bg-card shadow-card animate-float" style={{ animationDelay: "2.2s" }}>
+              <Heart className="w-4 h-4 fill-blush text-blush" aria-hidden />
+              <div className="text-xs">
+                <p className="font-semibold text-brown">"So adorable!"</p>
+                <p className="text-foreground/60">— Mika, verified buyer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section className="bg-cream py-20">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Why Peach Craft</span>
+            <h2 className="mt-3 font-display text-4xl text-brown">Small studio, big heart</h2>
+          </div>
+          <div className="mt-12 grid md:grid-cols-3 gap-6">
+            {[
+              {
+                Icon: HandmadeIllustration,
+                title: "Handmade",
+                desc: "Every piece is crafted by hand with love and care. No two are exactly alike — each one is a tiny original made just for you.",
+              },
+              {
+                Icon: KawaiiIllustration,
+                title: "Kawaii & Cute",
+                desc: "Inspired by jellycat softness and pastel aesthetics, every craft is designed to make you smile and brighten your space.",
+              },
+              {
+                Icon: PackagingIllustration,
+                title: "Thoughtful Packaging",
+                desc: "Your orders are packed with care using eco-friendly materials. Because we love the planet as much as we love cute crafts.",
+              },
+            ].map(({ Icon, title, desc }) => (
+              <div
+                key={title}
+                className="group bg-card rounded-3xl p-8 shadow-card hover:-translate-y-1 hover:shadow-soft transition-all"
+              >
+                <div className="w-20 h-20 mb-5 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                  <Icon className="w-full h-full" />
+                </div>
+                <h3 className="font-display text-2xl text-brown">{title}</h3>
+                <p className="mt-2 text-foreground/80 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURED PRODUCTS */}
+      <section className="bg-accent py-20">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="font-display text-4xl text-brown">
+              <span aria-hidden>✨</span> Featured Crafts
+            </h2>
+            <p className="mt-3 text-foreground/75">
+              A few of our most beloved creations — restocks coming soon!
+            </p>
+          </div>
+
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+
+          <div className="mt-12 text-center">
+            <Link
+              to="/shop"
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-blush text-blush-foreground font-semibold shadow-soft hover:scale-105 transition-transform"
+            >
+              View All Crafts <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* EMOTIONAL CTA STRIP — now actionable */}
+      <section className="bg-blush text-blush-foreground py-12">
+        <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_auto] items-center gap-6">
+          <p className="font-display italic text-2xl sm:text-3xl text-center lg:text-left">
+            it's okay to feel all the sweetness <span aria-hidden>🍑</span>
+          </p>
+          <Link
+            to="/shop"
+            className="justify-self-center inline-flex items-center gap-2 px-6 py-3 rounded-full bg-blush-foreground text-blush font-semibold hover:scale-105 transition-transform"
+          >
+            Get restock alerts <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }
