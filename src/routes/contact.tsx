@@ -21,7 +21,7 @@ function ContactPage() {
       <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-10">
         <div>
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Contact</span>
-          <h1 className="mt-3 font-display text-5xl text-brown">Say hi 🍑</h1>
+          <h1 className="mt-3 font-display text-5xl text-brown">Say hi</h1>
           <p className="mt-3 text-foreground/80 leading-relaxed">
             Custom order? Press inquiry? Just want to chat about clay? I'd love to hear from you. I reply within 1–2 business days.
           </p>
@@ -51,7 +51,7 @@ function ContactPage() {
             type="submit"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:-translate-y-0.5 transition-transform"
           >
-            {sent ? "Sent! Talk soon 🍑" : <>Send message <Send className="w-4 h-4" /></>}
+            {sent ? "Sent! Talk soon" : <>Send message <Send className="w-4 h-4" /></>}
           </button>
         </form>
       </div>

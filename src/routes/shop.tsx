@@ -14,14 +14,14 @@ export const Route = createFileRoute("/shop")({
 });
 
 const all: Product[] = [
-  { id: "1", name: "Strawberry Dream Cake", price: 680, emoji: "🍰", swatch: "blush", soldOut: true },
-  { id: "2", name: "Matcha Slice Box", price: 520, emoji: "🍵", swatch: "sage", tag: "New" },
-  { id: "3", name: "Peach Bear Clay Figure", price: 450, emoji: "🧸", swatch: "peach", soldOut: true },
-  { id: "4", name: "Cake Storage Box", price: 780, emoji: "🎁", swatch: "blush", tag: "Bestseller" },
-  { id: "5", name: "Cloud Bunny Trinket", price: 380, emoji: "🐰", swatch: "cream" },
-  { id: "6", name: "Mini Mochi Set", price: 290, emoji: "🍡", swatch: "blush", tag: "New" },
-  { id: "7", name: "Peach Pudding Jar", price: 420, emoji: "🍮", swatch: "peach" },
-  { id: "8", name: "Sakura Cake Slice", price: 560, emoji: "🌸", swatch: "blush" },
+  { id: "1", name: "Strawberry Dream Cake", price: 680, swatch: "blush", soldOut: true },
+  { id: "2", name: "Matcha Slice Box", price: 520, swatch: "sage", tag: "New" },
+  { id: "3", name: "Peach Bear Clay Figure", price: 450, swatch: "peach", soldOut: true },
+  { id: "4", name: "Cake Storage Box", price: 780, swatch: "blush", tag: "Bestseller" },
+  { id: "5", name: "Cloud Bunny Trinket", price: 380, swatch: "cream" },
+  { id: "6", name: "Mini Mochi Set", price: 290, swatch: "blush", tag: "New" },
+  { id: "7", name: "Peach Pudding Jar", price: 420, swatch: "peach" },
+  { id: "8", name: "Sakura Cake Slice", price: 560, swatch: "blush" },
 ];
 
 function ShopPage() {

@@ -6,7 +6,6 @@ export type Product = {
   id: string;
   name: string;
   price: number;
-  emoji: string;
   swatch: "blush" | "sage" | "cream" | "peach";
   soldOut?: boolean;
   tag?: string;
@@ -31,13 +30,6 @@ export function ProductCard({ product }: { product: Product }) {
       )}
     >
       <div className={cn("relative aspect-square overflow-hidden", swatchBg[product.swatch])}>
-        <div
-          className="absolute inset-0 grid place-items-center text-[7rem] transition-transform duration-500 group-hover:scale-110"
-          aria-hidden
-        >
-          {product.emoji}
-        </div>
-
         {/* Top-left badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
           {product.soldOut && (

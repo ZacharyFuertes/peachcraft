@@ -21,10 +21,10 @@ export const Route = createFileRoute("/")({
 });
 
 const products: Product[] = [
-  { id: "1", name: "Strawberry Dream Cake", price: 680, emoji: "🍰", swatch: "blush", soldOut: true },
-  { id: "2", name: "Matcha Slice Box", price: 520, emoji: "🍵", swatch: "sage", tag: "New" },
-  { id: "3", name: "Peach Bear Clay Figure", price: 450, emoji: "🧸", swatch: "peach", soldOut: true },
-  { id: "4", name: "Cake Storage Box", price: 780, emoji: "🎁", swatch: "blush", tag: "Bestseller" },
+  { id: "1", name: "Strawberry Dream Cake", price: 680, swatch: "blush", soldOut: true },
+  { id: "2", name: "Matcha Slice Box", price: 520, swatch: "sage", tag: "New" },
+  { id: "3", name: "Peach Bear Clay Figure", price: 450, swatch: "peach", soldOut: true },
+  { id: "4", name: "Cake Storage Box", price: 780, swatch: "blush", tag: "Bestseller" },
 ];
 
 function HomePage() {
@@ -39,8 +39,8 @@ function HomePage() {
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute top-10 left-1/3 w-3 h-3 rounded-full bg-blush animate-float" style={{ animationDelay: "0.5s" }} />
           <div className="absolute top-32 right-1/4 w-2 h-2 rounded-full bg-sage animate-float" style={{ animationDelay: "1.2s" }} />
-          <div className="absolute bottom-24 left-1/4 text-2xl animate-float" style={{ animationDelay: "0s" }}>✦</div>
-          <div className="absolute top-20 right-10 text-xl animate-float text-blush" style={{ animationDelay: "2s" }}>✿</div>
+          <div className="absolute bottom-24 left-1/4 text-2xl animate-float" style={{ animationDelay: "0s" }} />
+          <div className="absolute top-20 right-10 text-xl animate-float text-blush" style={{ animationDelay: "2s" }} />
         </div>
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-12 items-center relative">
@@ -52,7 +52,7 @@ function HomePage() {
               Handcrafted with love,
               <br />
               <em className="not-italic text-primary font-display italic">made to delight</em>{" "}
-              <span aria-hidden>🍑</span>
+              <span aria-hidden></span>
             </h1>
             <p className="mt-6 text-lg text-foreground/85 max-w-md leading-relaxed">
               Welcome to Peach Craft! I make adorable fake cakes, kawaii storage boxes, and air-dry clay creations — each one sculpted by hand with a whole lot of heart.
@@ -63,11 +63,11 @@ function HomePage() {
                 to="/shop"
                 className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all"
               >
-                Shop the Collection <span aria-hidden>🍰</span>
+                Shop the Collection <span aria-hidden></span>
               </Link>
               <Link
                 to="/about"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+                className="inline-flex  items-center gap-2 px-7 py-3.5 rounded-full border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 About Me <ArrowRight className="w-4 h-4" />
               </Link>
@@ -101,7 +101,7 @@ function HomePage() {
 
             {/* Floating mini-cards */}
             <div className="hidden sm:flex absolute -left-4 top-12 items-center gap-2 px-3 py-2 rounded-2xl bg-card shadow-card animate-float" style={{ animationDelay: "1s" }}>
-              <span className="grid place-items-center w-9 h-9 rounded-xl bg-blush text-lg" aria-hidden>🍓</span>
+              <span className="grid place-items-center w-9 h-9 rounded-xl bg-blush text-lg" aria-hidden />
               <div className="text-xs">
                 <p className="font-semibold text-brown">New restock</p>
                 <p className="text-foreground/60">3 pieces left</p>
@@ -163,7 +163,7 @@ function HomePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center">
             <h2 className="font-display text-4xl text-brown">
-              <span aria-hidden>✨</span> Featured Crafts
+              Featured Crafts
             </h2>
             <p className="mt-3 text-foreground/75">
               A few of our most beloved creations — restocks coming soon!
@@ -191,7 +191,7 @@ function HomePage() {
       <section className="bg-blush text-blush-foreground py-12">
         <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_auto] items-center gap-6">
           <p className="font-display italic text-2xl sm:text-3xl text-center lg:text-left">
-            it's okay to feel all the sweetness <span aria-hidden>🍑</span>
+            it's okay to feel all the sweetness
           </p>
           <Link
             to="/shop"

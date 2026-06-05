@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Search, ShoppingBag, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import logoUrl from "@/assets/icons/logo.svg?url";
 
 const nav = [
   { to: "/", label: "Home" },
@@ -29,11 +30,11 @@ export function SiteHeader() {
     <>
       {/* Announcement bars */}
       <div className="bg-primary text-primary-foreground text-sm py-2 text-center font-medium">
-        <span aria-hidden>🍰</span> Shop is OPEN for all orders <span aria-hidden>🌸</span>
+        <span aria-hidden></span> Shop is OPEN for all orders
       </div>
       <div className="bg-blush text-blush-foreground text-sm py-2 text-center font-medium relative overflow-hidden">
         <span className="relative z-10">
-          Free shipping on orders ₱1,000+ <span aria-hidden>🍑</span> mix &amp; match your fave crafts!
+          Free shipping on orders ₱1,000+ <span aria-hidden></span> mix &amp; match your fave crafts!
         </span>
         <span className="absolute inset-0 marquee-strip pointer-events-none" aria-hidden />
       </div>
@@ -48,13 +49,12 @@ export function SiteHeader() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            <Link to="/" className="flex items-center gap-2 group" aria-label="Peach Craft home">
-              <span
-                className="grid place-items-center w-10 h-10 rounded-full bg-blush text-xl shadow-soft group-hover:animate-wiggle"
-                aria-hidden
-              >
-                🎂
-              </span>
+            <Link to="/" className="flex items-center gap-3 group" aria-label="Peach Craft home">
+              <img
+                src={logoUrl}
+                alt="Peach Craft logo"
+                className="w-10 h-10 object-contain"
+              />
               <span className="font-display text-2xl">
                 <span className="text-brown">Peach</span>{" "}
                 <span className="text-primary">Craft</span>

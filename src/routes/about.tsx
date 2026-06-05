@@ -22,7 +22,7 @@ function AboutPage() {
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">About</span>
             <h1 className="mt-3 font-display text-5xl lg:text-6xl text-brown leading-tight">
-              Hi, I'm the hands behind <em className="text-primary not-italic italic">Peach Craft</em> 🍑
+              Hi, I'm the hands behind <em className="text-primary not-italic italic">Peach Craft</em>
             </h1>
             <p className="mt-5 text-lg text-foreground/85 leading-relaxed">
               Peach Craft started on a kitchen table in 2023 with a lump of air-dry clay and too many late-night cake cravings. What began as a hobby is now a tiny studio where I sculpt, paint, and pack every single order myself.
