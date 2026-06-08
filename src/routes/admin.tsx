@@ -52,7 +52,7 @@ function AdminLayout() {
     } else if (path.startsWith("/admin/analytics")) {
       setActiveSection("/admin/analytics");
     }
-  }, [location]);
+  }, [location?.pathname]);
 
   const activePath = location?.pathname ?? "/admin";
   const initial = email?.[0]?.toUpperCase() ?? "A";
@@ -97,7 +97,7 @@ function AdminLayout() {
                     "block rounded-3xl px-4 py-3 text-sm font-semibold transition",
                     isActive
                       ? "bg-[var(--sage)] text-[var(--foreground)]"
-                      : "text-[var(--foreground)]/85 hover:bg-[var(--foreground)]/10",
+                      : "text-[var(--foreground)]/85 hover:bg-[var(--sage)] hover:text-[var(--foreground)]",
                   )}
                 >
                   {item.label}
