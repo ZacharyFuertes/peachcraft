@@ -76,7 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Peach Craft — Handmade fake cakes, clay crafts & kawaii storage" },
+      { title: "Peach Craft Handmade fake cakes, clay crafts & kawaii storage" },
       { name: "description", content: "Peach Craft makes adorable handmade fake cakes, air-dry clay figures and kawaii storage boxes — sculpted one piece at a time with love." },
       { name: "author", content: "Peach Craft" },
       { property: "og:title", content: "Peach Craft — Handmade with love" },
@@ -118,15 +118,17 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+  const hideShell = router.state.location.pathname.startsWith("/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SiteHeader />
+      {!hideShell && <SiteHeader />}
       <main id="main">
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </main>
-      <SiteFooter />
+      {!hideShell && <SiteFooter />}
     </QueryClientProvider>
   );
 }

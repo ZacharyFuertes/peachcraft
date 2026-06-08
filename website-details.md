@@ -220,3 +220,152 @@ These tokens are used throughout the app with Tailwind-style classes and inline 
 - The site has strong branding and marketing structure, with a static storefront design and small hero/features/product sections.
 
 If you want, I can also add a shorter `README` version or convert this into developer-facing architecture docs inside `src/README.md`.
+
+
+# Peach Craft — Complete Website Details & Architecture
+
+## Project Overview & Brand Vibe
+
+**Peach Craft** is a charming, high-polish e-commerce/marketing storefront for a fictional small handmade craft brand specializing in kawaii-style cakes, clay crafts, and cute storage items.
+
+### Core Vibe & Aesthetic (Critical for AI)
+- **Mood**: Extremely cute, warm, gentle, whimsical, handmade, and heartfelt.
+- **Tone of Voice**: Sweet, personal, passionate solo maker.
+- **Visual Style**: Soft pastel color palette, generous rounded corners, subtle floating animations, gentle shadows, playful illustrations.
+- **Key Feelings**: Kawaii, artisan, cozy, trustworthy, delightful.
+- **Color System**: Based on Oklch colors defined in `styles.css` (blush, cream, sage, sage-deep, brown, etc.). Full light + dark mode support.
+- **Typography**: 
+  - Headings: `Fraunces` or DM Serif Display
+  - Body: `Plus Jakarta Sans`
+- **Animations**: `animate-float`, `animate-wiggle`, subtle scale on hover, smooth transitions (300ms ease).
+
+---
+
+## Tech Stack
+
+- **Frontend**: React 19 + TypeScript (strict)
+- **Routing**: TanStack Router (file-based routing + SSR)
+- **Full-stack**: TanStack Start
+- **Styling**: Tailwind CSS v4 + custom `styles.css` design system
+- **Data Fetching**: TanStack Query
+- **UI Primitives**: Radix UI + custom components
+- **Icons**: Lucide React
+- **Build Tool**: Vite 7
+- **Code Quality**: ESLint + Prettier
+
+---
+
+## Detailed Project Structure
+
+
+
+
+# Peach Craft — Complete Website Details & Architecture
+
+## Project Overview & Brand Vibe
+
+**Peach Craft** is a charming, high-polish e-commerce/marketing storefront for a fictional small handmade craft brand specializing in kawaii-style cakes, clay crafts, and cute storage items.
+
+### Core Vibe & Aesthetic (Critical for AI)
+- **Mood**: Extremely cute, warm, gentle, whimsical, handmade, and heartfelt.
+- **Tone of Voice**: Sweet, personal, passionate solo maker.
+- **Visual Style**: Soft pastel color palette, generous rounded corners, subtle floating animations, gentle shadows, playful illustrations.
+- **Key Feelings**: Kawaii, artisan, cozy, trustworthy, delightful.
+- **Color System**: Based on Oklch colors defined in `styles.css` (blush, cream, sage, sage-deep, brown, etc.). Full light + dark mode support.
+- **Typography**: 
+  - Headings: `Fraunces` or DM Serif Display
+  - Body: `Plus Jakarta Sans`
+- **Animations**: `animate-float`, `animate-wiggle`, subtle scale on hover, smooth transitions (300ms ease).
+
+---
+
+## Tech Stack
+
+- **Frontend**: React 19 + TypeScript (strict)
+- **Routing**: TanStack Router (file-based routing + SSR)
+- **Full-stack**: TanStack Start
+- **Styling**: Tailwind CSS v4 + custom `styles.css` design system
+- **Data Fetching**: TanStack Query
+- **UI Primitives**: Radix UI + custom components
+- **Icons**: Lucide React
+- **Build Tool**: Vite 7
+- **Code Quality**: ESLint + Prettier
+
+---
+
+## Detailed Project Structure
+
+
+
+---
+
+## Key Components & Logic (Detailed)
+
+### 1. ProductCard.tsx
+- Displays image, title, price, description snippet.
+- **States**: `soldOut`, `tag` (e.g. "New", "Best Seller").
+- **Interactions**:
+  - Heart wishlist button with local `liked` state + animation.
+  - Add to cart button (currently UI only).
+  - Color swatch background based on `product.swatch`.
+  - Hover: Lift effect, image scale, shadow increase.
+- Reused on Home (featured) and Shop pages.
+
+### 2. SiteHeader.tsx
+- Sticky header.
+- Announcement bar (top).
+- Desktop nav + mobile menu (slide-in).
+- Scroll-aware styling (background appears on scroll).
+- Active link highlighting via `useRouterState`.
+- Cart & search icons (placeholders).
+
+### 3. SiteFooter.tsx
+- Newsletter signup form with local state + success message.
+- Navigation links, social icons, copyright.
+
+### 4. Styling System (`styles.css`)
+- Full custom design tokens using CSS variables (Oklch).
+- Semantic colors: `--blush`, `--sage`, `--cream`, etc.
+- Utilities: `animate-float`, `animate-wiggle`, `marquee-strip`, soft shadows, hero gradient.
+- Dark mode via `.dark` class.
+
+### 5. Product Data Structure
+Currently static arrays with this shape:
+
+```ts
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  description?: string;
+  soldOut?: boolean;
+  tag?: string;
+  swatch?: string;        // color for swatch
+  category?: string;
+};
+
+
+Pages Summary
+
+Home (/): Hero with floating elements, trust badges, featured products, studio values.
+Shop (/shop): Full grid of products.
+About: Story, process (3 steps), illustrations.
+Contact: Info + simple form (local state only).
+Shipping Policy: Static policy content.
+
+
+Current Limitations (Important for Backend Planning)
+
+All product data is hardcoded.
+Cart, wishlist, newsletter, contact form are local state only.
+No real backend, database, or persistence.
+No authentication or admin features yet.
+
+
+Development Workflow
+
+npm run dev → Vite dev server
+Route tree auto-generated (routeTree.gen.ts)
+SSR via TanStack Start
+Error handling: Custom SSR error pages

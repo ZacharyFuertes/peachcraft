@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Star, Sparkles, Heart } from "lucide-react";
-import { ProductCard, type Product } from "@/components/ProductCard";
+import { useQuery } from "@tanstack/react-query";
+import { ProductCard } from "@/components/ProductCard";
+import { getFeaturedProducts } from "@/lib/api/supabase.functions";
+import type { Product } from "@/lib/supabase";
 import {
   HandmadeIllustration,
   KawaiiIllustration,
@@ -11,7 +14,7 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Peach Craft — Handmade fake cakes & kawaii clay crafts" },
+      { title: "Peach Craft Cute Fake Cakes & Kawaii Clay Crafts" },
       { name: "description", content: "Adorable handmade fake cakes, air-dry clay figures and kawaii storage boxes. Sculpted by hand with love." },
       { property: "og:title", content: "Peach Craft — Handmade with love" },
       { property: "og:description", content: "Adorable handmade fake cakes, air-dry clay figures and kawaii storage boxes." },
@@ -20,14 +23,14 @@ export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
-const products: Product[] = [
-  { id: "1", name: "Strawberry Dream Cake", price: 680, swatch: "blush", soldOut: true },
-  { id: "2", name: "Matcha Slice Box", price: 520, swatch: "sage", tag: "New" },
-  { id: "3", name: "Peach Bear Clay Figure", price: 450, swatch: "peach", soldOut: true },
-  { id: "4", name: "Cake Storage Box", price: 780, swatch: "blush", tag: "Bestseller" },
-];
+const featuredProductsQuery = {
+  queryKey: ["featured-products"],
+  queryFn: getFeaturedProducts,
+};
 
 function HomePage() {
+  const { data: products, isLoading, error } = useQuery<Product[]>(featuredProductsQuery);
+
   return (
     <>
       {/* HERO */}
@@ -171,9 +174,17 @@ function HomePage() {
           </div>
 
           <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-80 rounded-3xl bg-[var(--card)] shadow-soft" />
+              ))
+            ) : error ? (
+              <div className="rounded-3xl bg-[var(--card)] p-6 text-sm text-[#f87171] shadow-soft">{error instanceof Error ? error.message : "Unable to load featured products."}</div>
+            ) : (
+              (products ?? []).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))
+            )}
           </div>
 
           <div className="mt-12 text-center">

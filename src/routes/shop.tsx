@@ -1,5 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ProductCard, type Product } from "@/components/ProductCard";
+import { useEffect, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { ProductCard } from "@/components/ProductCard";
+import { getAllProducts } from "@/lib/api/supabase.functions";
+import { getSupabaseClient } from "@/lib/supabase";
 
 export const Route = createFileRoute("/shop")({
   head: () => ({
@@ -13,18 +17,34 @@ export const Route = createFileRoute("/shop")({
   component: ShopPage,
 });
 
-const all: Product[] = [
-  { id: "1", name: "Strawberry Dream Cake", price: 680, swatch: "blush", soldOut: true },
-  { id: "2", name: "Matcha Slice Box", price: 520, swatch: "sage", tag: "New" },
-  { id: "3", name: "Peach Bear Clay Figure", price: 450, swatch: "peach", soldOut: true },
-  { id: "4", name: "Cake Storage Box", price: 780, swatch: "blush", tag: "Bestseller" },
-  { id: "5", name: "Cloud Bunny Trinket", price: 380, swatch: "cream" },
-  { id: "6", name: "Mini Mochi Set", price: 290, swatch: "blush", tag: "New" },
-  { id: "7", name: "Peach Pudding Jar", price: 420, swatch: "peach" },
-  { id: "8", name: "Sakura Cake Slice", price: 560, swatch: "blush" },
-];
+const allProductsQuery = {
+  queryKey: ["all-products"],
+  queryFn: getAllProducts,
+};
 
 function ShopPage() {
+  const [isAdminPreview, setIsAdminPreview] = useState(false);
+  const navigate = useNavigate();
+  const { data: all, isLoading, error } = useQuery(allProductsQuery);
+
+  useEffect(() => {
+    let mounted = true;
+    const supabase = getSupabaseClient();
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? "";
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (!mounted) return;
+      const userEmail = data.user?.email?.toLowerCase() ?? "";
+      if (adminEmail && userEmail === adminEmail.toLowerCase()) {
+        setIsAdminPreview(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <section className="bg-cream py-16">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -36,8 +56,26 @@ function ShopPage() {
           </p>
         </header>
 
+        {isAdminPreview ? (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/admin" })}
+              className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-5 py-2 text-sm font-semibold text-[var(--foreground)] shadow-soft transition hover:bg-[var(--sage-deep)]"
+            >
+              Back to admin dashboard
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {all.map((p) => (
+          {isLoading ? (
+            Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="h-80 rounded-3xl bg-[var(--card)] shadow-soft" />
+            ))
+          ) : error ? (
+            <div className="rounded-3xl bg-[var(--card)] p-6 text-sm text-[#f87171] shadow-soft">{error instanceof Error ? error.message : "Unable to load products."}</div>
+          ) : (all ?? []).map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>

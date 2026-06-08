@@ -1,8 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Search, ShoppingBag, Menu, X } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Search, ShoppingBag, Menu, X, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/icons/logo.svg?url";
+import { getSupabaseClient } from "@/lib/supabase";
 
 const nav = [
   { to: "/", label: "Home" },
@@ -15,7 +16,9 @@ const nav = [
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const { location } = useRouterState();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -25,6 +28,28 @@ export function SiteHeader() {
   }, []);
 
   useEffect(() => setOpen(false), [location.pathname]);
+
+  // Keep auth state in sync
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+    setUserEmail(null);
+    navigate({ to: "/" });
+  };
+
+  const initial = userEmail?.[0]?.toUpperCase() ?? "?";
+  const isLoggedIn = !!userEmail;
 
   return (
     <>
@@ -106,6 +131,35 @@ export function SiteHeader() {
                 <ShoppingBag className="w-5 h-5" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blush" aria-hidden />
               </button>
+
+              {/* Sign In / User avatar — desktop */}
+              {isLoggedIn ? (
+                <div className="hidden lg:flex items-center gap-2 ml-1">
+                  <div
+                    title={userEmail ?? ""}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft select-none"
+                  >
+                    {initial}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-foreground/80 hover:bg-accent transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  id="header-sign-in-btn"
+                  className="hidden lg:inline-flex items-center gap-2 ml-1 px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                >
+                  <UserCircle2 className="w-4 h-4" aria-hidden />
+                  Sign In
+                </Link>
+              )}
+
               <button
                 type="button"
                 aria-label={open ? "Close menu" : "Open menu"}
@@ -135,6 +189,26 @@ export function SiteHeader() {
                   </Link>
                 </li>
               ))}
+              {/* Sign In / Sign Out — mobile menu */}
+              <li className="pt-1 pb-2">
+                {isLoggedIn ? (
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="w-full text-left px-3 py-3 rounded-lg text-base font-medium hover:bg-accent text-foreground/80"
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-2 px-3 py-3 rounded-lg text-base font-semibold text-primary hover:bg-accent"
+                  >
+                    <UserCircle2 className="w-5 h-5" aria-hidden />
+                    Sign In
+                  </Link>
+                )}
+              </li>
             </ul>
           </nav>
         )}

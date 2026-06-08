@@ -1,35 +1,42 @@
 import { useState } from "react";
 import { Eye, ShoppingBag, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Product } from "@/lib/supabase";
 
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  swatch: "blush" | "sage" | "cream" | "peach";
-  soldOut?: boolean;
-  tag?: string;
-};
-
-const swatchBg: Record<Product["swatch"], string> = {
-  blush: "bg-[oklch(0.92_0.05_20)]",
-  sage: "bg-[oklch(0.92_0.05_150)]",
-  cream: "bg-[oklch(0.95_0.04_80)]",
-  peach: "bg-[oklch(0.93_0.06_55)]",
+const namedSwatchColors: Record<string, string> = {
+  blush: "#f7c8d9",
+  sage: "#a8c5a3",
+  cream: "#f9f2e8",
+  peach: "#f5d0b9",
 };
 
 export function ProductCard({ product }: { product: Product }) {
   const [liked, setLiked] = useState(false);
+  const imageSrc = product.images?.[0] ?? null;
+  const swatchColor = product.swatch ?? "#f7c8d9";
+  const backgroundColor = swatchColor.startsWith("#")
+    ? swatchColor
+    : namedSwatchColors[swatchColor] ?? "#f7c8d9";
 
   return (
     <article
       className={cn(
-        "group relative bg-card rounded-3xl overflow-hidden shadow-card",
-        "transition-all duration-300 hover:-translate-y-1.5 hover:shadow-soft",
-        "focus-within:-translate-y-1.5",
+        "group relative rounded-3xl overflow-hidden shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-soft focus-within:-translate-y-1.5",
       )}
+      style={{ backgroundColor }}
     >
-      <div className={cn("relative aspect-square overflow-hidden", swatchBg[product.swatch])}>
+      <div className="relative aspect-square overflow-hidden">
+        {imageSrc ? (
+          <div className="absolute inset-4 overflow-hidden rounded-[1.75rem] bg-[var(--card)]">
+            <img
+              src={imageSrc}
+              alt={product.name}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : null}
+
         {/* Top-left badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
           {product.soldOut && (
