@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { ProductForm, type ProductFormData } from "@/components/admin/ProductForm";
 import { createProduct } from "@/lib/api/supabase.functions";
+import { Alert } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -66,9 +67,12 @@ function NewProductPage() {
         <h1 className="mt-2 text-4xl font-semibold text-[var(--foreground)]">New product</h1>
       </div>
       {error && <div className="rounded-3xl bg-[#f87171]/10 p-4 text-sm text-[#991b1b]">{error}</div>}
-      <div className="rounded-3xl bg-[var(--card)] p-8 shadow-soft">
-        <ProductForm key={formKey} onSubmit={handleCreate} isLoading={isSaving} />
-      </div>
+      {showSuccessDialog && (
+        <Alert variant="success" className="rounded-3xl text-sm">
+          Product added successfully.
+        </Alert>
+      )}
+      <ProductForm key={formKey} onSubmit={handleCreate} isLoading={isSaving} />
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent>
