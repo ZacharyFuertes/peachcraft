@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ProductForm, type ProductFormData } from "@/components/admin/ProductForm";
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/admin/products/$id")({
 });
 
 function EditProductPage() {
-  const params = useParams();
+  const params = Route.useParams();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -27,7 +27,7 @@ function EditProductPage() {
     if (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Unable to load product.";
       if (message.includes("not found")) {
-        navigate("/admin/products");
+        navigate({ to: "/admin/products" });
       }
       setError(message);
     }
@@ -39,7 +39,7 @@ function EditProductPage() {
 
     try {
       await updateProduct({ data: { id: params.id!, ...formData, accessToken } });
-      navigate("/admin/products?updated=true");
+      navigate({ to: "/admin/products", search: { updated: "true" } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product.");
     } finally {

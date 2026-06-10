@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/admin/orders/$id")({
 });
 
 function AdminOrderDetailPage() {
-  const params = useParams();
+  const params = Route.useParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<string>(statusOptions[0]);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ function AdminOrderDetailPage() {
     if (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Unable to load order.";
       if (message.includes("not found")) {
-        navigate("/admin/orders");
+        navigate({ to: "/admin/orders" });
       }
       setError(message);
     }
@@ -55,7 +55,7 @@ function AdminOrderDetailPage() {
 
     try {
       await updateOrderStatus({ data: { id: data.id, status } });
-      navigate("/admin/orders");
+      navigate({ to: "/admin/orders" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status.");
     } finally {

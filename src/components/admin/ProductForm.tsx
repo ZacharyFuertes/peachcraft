@@ -598,7 +598,7 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">Active</p>
                   <p className="text-xs text-foreground/70">
-                    {isActive ? "Active — product is visible in shop" : "Inactive — hidden from shop"}
+                    {isActive ? "Active — product is visible in shop" : "Inactive hidden from shop"}
                   </p>
                 </div>
                 <label className="relative inline-flex cursor-pointer items-center">
