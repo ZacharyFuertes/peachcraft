@@ -264,13 +264,108 @@ export const deleteProduct = createServerFn({ method: "POST" })
     await verifyAdmin(request, data.accessToken);
     const supabase = getSupabaseServer(request);
 
-    const { error } = await supabase
+    // Fetch product to get images
+    const { data: product, error: fetchError } = await supabase
+      .from("products")
+      .select("images")
+      .eq("id", data.id)
+      .single();
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    // Delete images from storage
+    if (product?.images && Array.isArray(product.images)) {
+      const r2AccountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
+      const r2BucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+      const r2ApiToken = process.env.CLOUDFLARE_R2_API_TOKEN;
+      const encodeR2ObjectKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
+      const parseStorageFilePath = (imageUrl: string) => {
+        if (imageUrl.startsWith("/api/images/")) {
+          return decodeURIComponent(imageUrl.replace("/api/images/", ""));
+        }
+
+        if (imageUrl.includes("r2.cloudflarestorage.com") && r2BucketName) {
+          try {
+            const url = new URL(imageUrl);
+            const bucketSegment = `/${r2BucketName}/`;
+            const index = url.pathname.indexOf(bucketSegment);
+            if (index >= 0) {
+              return decodeURIComponent(url.pathname.slice(index + bucketSegment.length));
+            }
+          } catch {
+            return null;
+          }
+        }
+
+        if (imageUrl.includes("supabase.co")) {
+          return imageUrl.split("/object/public/product-images/")[1] ?? null;
+        }
+
+        return null;
+      };
+
+      let deleteFailed = false;
+
+      for (const imageUrl of product.images) {
+        const filePath = parseStorageFilePath(imageUrl);
+
+        if (filePath && r2AccountId && r2BucketName && r2ApiToken) {
+          try {
+            const encodedObjectKey = encodeR2ObjectKey(filePath);
+            const deleteUrl = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedObjectKey}`;
+            const response = await fetch(deleteUrl, {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${r2ApiToken}`,
+              },
+            });
+
+            if (response.ok) {
+              console.log("[Delete] Removed Cloudflare R2 image:", filePath);
+            } else {
+              console.warn("[Delete] Failed to remove Cloudflare R2 image:", filePath, response.statusText);
+              deleteFailed = true;
+            }
+          } catch (error) {
+            console.warn("[Delete] Error removing Cloudflare R2 image:", filePath, error);
+            deleteFailed = true;
+          }
+        }
+
+        if (imageUrl.includes("supabase.co")) {
+          const supabaseFilePath = imageUrl.split("/object/public/product-images/")[1];
+          if (supabaseFilePath) {
+            try {
+              const { error: removeError } = await supabase.storage.from("product-images").remove([supabaseFilePath]);
+              if (removeError) {
+                console.warn("[Delete] Failed to remove Supabase image:", supabaseFilePath, removeError.message);
+                deleteFailed = true;
+              } else {
+                console.log("[Delete] Removed Supabase image:", supabaseFilePath);
+              }
+            } catch (error) {
+              console.warn("[Delete] Failed to remove Supabase image:", supabaseFilePath, error);
+              deleteFailed = true;
+            }
+          }
+        }
+      }
+
+      if (deleteFailed) {
+        throw new Error("Failed to remove one or more product images from storage.");
+      }
+    }
+
+    // Delete product from database
+    const { error: deleteError } = await supabase
       .from("products")
       .delete()
       .eq("id", data.id);
 
-    if (error) {
-      throw error;
+    if (deleteError) {
+      throw deleteError;
     }
 
     return { id: data.id };
@@ -605,13 +700,54 @@ export const uploadProductImage = createServerFn({ method: "POST" })
   .inputValidator(z.object({ fileName: z.string().min(1), base64: z.string().min(1), accessToken: z.string().optional() }))
   .handler(async ({ data, request }) => {
     await verifyAdmin(request, data.accessToken);
-    const supabase = getSupabaseServer(request);
 
     const { Buffer } = await import("node:buffer");
+    const mimeType = data.base64.match(/^data:(.*);base64,/)?.[1] ?? "application/octet-stream";
     const base64String = data.base64.replace(/^data:.*;base64,/, "");
     const buffer = Buffer.from(base64String, "base64");
     const filePath = `public/${Date.now()}-${data.fileName}`;
 
+    const encodeR2ObjectKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
+
+    // Primary: Upload to Cloudflare R2
+    const r2AccountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
+    const r2BucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+    const r2ApiToken = process.env.CLOUDFLARE_R2_API_TOKEN;
+
+    if (r2AccountId && r2BucketName && r2ApiToken) {
+      try {
+        const encodedObjectKey = encodeR2ObjectKey(filePath);
+        const uploadUrl = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedObjectKey}`;
+        console.log("[R2] Uploading to Cloudflare R2...");
+        
+        const response = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${r2ApiToken}`,
+            "Content-Type": mimeType,
+          },
+          body: buffer,
+        });
+
+        const json = await response.json().catch(() => null);
+        if (response.ok && json && json.success !== false) {
+          // Return proxy URL instead of direct R2 URL (bypasses ORB)
+          const proxyUrl = `/api/images/${encodeURIComponent(filePath)}`;
+          console.log("[R2] Upload successful, using proxy URL:", proxyUrl);
+          return { publicUrl: proxyUrl };
+        } else {
+          console.warn("[R2] Upload failed:", json?.errors?.[0]?.message);
+          throw new Error(`R2 upload failed: ${json?.errors?.[0]?.message}`);
+        }
+      } catch (error) {
+        console.error("[R2] Upload error:", error);
+        throw error;
+      }
+    }
+
+    // Fallback to Supabase if R2 not configured
+    console.log("[Supabase] R2 not configured, using Supabase Storage");
+    const supabase = getSupabaseServer(request);
     const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, buffer, {
       contentType: "image/*",
       upsert: false,
@@ -626,5 +762,6 @@ export const uploadProductImage = createServerFn({ method: "POST" })
       throw urlError ?? new Error("Failed to generate public URL.");
     }
 
+    console.log("[Supabase] Upload successful:", publicData.publicUrl);
     return { publicUrl: publicData.publicUrl };
   });
