@@ -86,6 +86,7 @@ function AdminLayout() {
               { to: "/admin/products", label: "Products" },
               { to: "/admin/orders", label: "Orders" },
               { to: "/admin/analytics", label: "Analytics" },
+              { to: "/admin/website-settings", label: "Website Settings" },
             ].map((item) => {
               const isActive = activeSection === item.to;
               return (
