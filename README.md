@@ -38,9 +38,11 @@ The website uses file-based routes under `src/routes/`.
 - `src/routes/__root.tsx` is the root layout and app shell.
 - `src/routes/index.tsx` is the home page (`/`).
 - `src/routes/shop.tsx` is the shop/catalog page (`/shop`).
+- `src/routes/cart.tsx` is the shopping cart page (`/cart`).
+- `src/routes/checkout.tsx` is the checkout page (`/checkout`).
 - `src/routes/about.tsx` is the about page (`/about`).
 - `src/routes/contact.tsx` is the contact page (`/contact`).
-- `src/routes/login.tsx` and `src/routes/signup.tsx` handle authentication views.
+- `src/routes/login.tsx` and `src/routes/signup.tsx` handle authentication views with guest checkout options.
 - `src/routes/shipping-policy.tsx` is the store policy page.
 - `src/routes/admin/` contains admin-only sections, including dashboard, products, orders, and analytics.
 
@@ -71,9 +73,35 @@ Key server functions include:
 
 - `getFeaturedProducts()` - returns active featured products for homepage cards
 - `getAllProducts()` - fetches all active shop products
+- `createOrder()` - creates orders from cart with atomic stock management
+- `signUpWithProfile()` - creates user account with profile and sends email verification
+- `verifyEmail()` - verifies email with token from verification email link
+- `checkEmailVerification()` - checks if user's email has been verified
 - `getAdminDashboardData()` - aggregates dashboard metrics, low stock alerts, and recent orders
 - `getAdminProducts()` - returns products for the admin product list
 - `toggleProductActive()` - admin-only product on/off activation
+
+### User Authentication & Registration
+
+The app uses Supabase Auth with email verification for secure user registration:
+
+- `src/routes/signup.tsx` - Enhanced registration form with username, email, address, password fields
+- `src/routes/login.tsx` - Login with email verification requirement
+- `src/routes/verify-email.tsx` - Email verification page accessed via verification link
+- `src/lib/api/supabase.functions.ts` - Authentication server functions (signUpWithProfile, verifyEmail, checkEmailVerification)
+- `profiles` table - Stores user profile data (username, address, email_verified status)
+- Email verification required before first login to prevent bot accounts
+
+### Shopping Cart & Checkout
+
+The cart system is built with localStorage persistence and server-side order management:
+
+- `src/lib/cart.ts` - Cart state management with `useCart()` hook, add/remove/update operations
+- `src/routes/cart.tsx` - Full cart page (`/cart`) with item management and checkout navigation
+- `src/routes/checkout.tsx` - Checkout form (`/checkout`) with shipping address collection and order creation
+- Server function `createOrder()` validates stock, prevents overselling, and creates order records atomically
+- Cart persists across browser sessions using localStorage
+- Supports both guest and authenticated checkout
 
 ### Admin area
 
@@ -110,10 +138,13 @@ The main public website pages are:
 
 - `/` - homepage with hero, feature section, and featured products
 - `/shop` - product catalog
+- `/cart` - shopping cart with item management and checkout navigation
+- `/checkout` - checkout form with shipping address and order creation
+- `/login` - user login page with email verification check (with guest checkout option)
+- `/signup` - enhanced account creation with username, address, email, password fields
+- `/verify-email` - email verification page (accessed via link in verification email)
 - `/about` - about the studio and maker
 - `/contact` - contact form or details
-- `/login` - user login page
-- `/signup` - account creation page
 - `/shipping-policy` - shipping and fulfillment policy
 
 ## Development
@@ -171,14 +202,19 @@ Optional Cloudflare R2 image proxy variables:
 - `src/routes/README.md` contains the route naming conventions used by TanStack Start / React Router.
 - `src/routeTree.gen.ts` is generated and should not be edited by hand.
 - Server-only config in `src/lib/config.server.ts` is intentionally not bundled to the browser.
+- `CART_AND_CHECKOUT_GUIDE.md` contains comprehensive documentation for the shopping cart and checkout system, including database schema requirements, testing procedures, and future enhancement roadmap.
+- `REGISTRATION_SETUP_GUIDE.md` contains setup instructions for email verification, database schema for profiles table, and security features to prevent bot attacks.
 
 ## Useful files
 
 - `src/router.tsx` - router setup with `QueryClient`
 - `src/start.ts` - request middleware and server function config
 - `src/server.ts` - production request handler and error normalization
-- `src/lib/supabase.ts` - Supabase client/server initialization
-- `src/lib/api/supabase.functions.ts` - backend server functions
+- `src/lib/supabase.ts` - Supabase client/server initialization and type definitions
+- `src/lib/cart.ts` - cart state management and utilities
+- `src/lib/api/supabase.functions.ts` - backend server functions including order creation and authentication
 - `src/components/` - reusable components and layout
 - `src/routes/` - file-based route pages
 - `src/components/ui/` - design system primitives and shared UI controls
+- `CART_AND_CHECKOUT_GUIDE.md` - detailed cart/checkout system documentation
+- `REGISTRATION_SETUP_GUIDE.md` - email verification and user authentication setup guide
