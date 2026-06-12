@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Eye, ShoppingBag, Heart } from "lucide-react";
+import { Eye, ShoppingBag, Heart, Check } from "lucide-react";
 import { useCart } from "@/lib/cart";
+import { useCartToast } from "@/components/CartToast";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/supabase";
 
@@ -22,9 +23,20 @@ export function ProductCard({ product }: { product: Product }) {
   const existingCartItem = items.find((item) => item.product_id === product.id);
   const isOutOfStock = product.soldOut || (product.stock_qty != null && existingCartItem?.qty >= product.stock_qty);
 
+  const [added, setAdded] = useState(false);
+  const { notify } = useCartToast();
+
   const handleAddToCart = () => {
     try {
       addItem(product, 1);
+      notify({
+        productName: product.name,
+        productImage: product.images?.[0] ?? null,
+        qty: 1,
+      });
+      // Trigger button checkmark animation
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1400);
     } catch (error) {
       if (error instanceof Error) {
         window.alert(error.message);
@@ -105,10 +117,15 @@ export function ProductCard({ product }: { product: Product }) {
               "inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold",
               "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
               "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
+              added && "animate-cart-pop",
             )}
           >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            {product.soldOut ? "Sold out" : isOutOfStock ? "Max quantity" : "Add"}
+            {added ? (
+              <Check className="w-3.5 h-3.5 stroke-[3] animate-scale-in" />
+            ) : (
+              <ShoppingBag className="w-3.5 h-3.5" />
+            )}
+            {product.soldOut ? "Sold out" : isOutOfStock ? "Max qty" : added ? "Added!" : "Add"}
           </button>
         </div>
       </div>

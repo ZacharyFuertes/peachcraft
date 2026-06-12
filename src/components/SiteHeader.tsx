@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Search, ShoppingBag, Menu, X, UserCircle2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/icons/logo.svg?url";
@@ -50,6 +50,17 @@ export function SiteHeader() {
   };
 
   const { itemCount } = useCart();
+  const prevItemCountRef = useRef(itemCount);
+  const [cartBouncing, setCartBouncing] = useState(false);
+
+  useEffect(() => {
+    if (itemCount > prevItemCountRef.current) {
+      setCartBouncing(true);
+      setTimeout(() => setCartBouncing(false), 600);
+    }
+    prevItemCountRef.current = itemCount;
+  }, [itemCount]);
+
   const initial = userEmail?.[0]?.toUpperCase() ?? "?";
   const isLoggedIn = !!userEmail;
 
@@ -130,7 +141,12 @@ export function SiteHeader() {
                 aria-label={`Cart, ${itemCount} items`}
                 className="grid place-items-center w-11 h-11 rounded-full hover:bg-accent transition-colors relative"
               >
-                <ShoppingBag className="w-5 h-5" />
+                <ShoppingBag
+                  className={cn(
+                    "w-5 h-5 transition-transform",
+                    cartBouncing && "animate-cart-bounce",
+                  )}
+                />
                 <span className="absolute top-1.5 right-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-semibold text-white">
                   {itemCount}
                 </span>

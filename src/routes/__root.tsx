@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
+import { CartToastProvider } from "../components/CartToast";
 
 
 function NotFoundComponent() {
@@ -123,12 +124,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {!hideShell && <SiteHeader />}
-      <main id="main">
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-      </main>
-      {!hideShell && <SiteFooter />}
+      <CartToastProvider>
+        {!hideShell && <SiteHeader />}
+        <main id="main">
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </main>
+        {!hideShell && <SiteFooter />}
+      </CartToastProvider>
     </QueryClientProvider>
   );
 }
