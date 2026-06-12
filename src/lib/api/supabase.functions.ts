@@ -62,6 +62,28 @@ export type OrderDetail = {
   items: OrderDetailItem[];
 };
 
+export type CartOrderItem = {
+  product_id: string;
+  qty: number;
+  price_at_purchase: number;
+};
+
+export type OrderShippingAddress = {
+  name: string;
+  email: string;
+  street: string;
+  city: string;
+  province: string;
+  zip: string;
+};
+
+export type CreateOrderInput = {
+  items: CartOrderItem[];
+  shipping_address: OrderShippingAddress;
+  total_amount: number;
+  payment_method: "cash_on_delivery";
+};
+
 export type AdminDashboardData = {
   todaysRevenue: number;
   todaysOrders: number;
@@ -226,6 +248,180 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
   };
 });
 
+export const getUserActiveOrderStatus = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const supabase = getSupabaseServer();
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id ?? null;
+
+    if (!userId) {
+      return { hasActiveOrder: false, activeOrder: null };
+    }
+
+    const { data: activeOrders, error } = await supabase
+      .from("orders")
+      .select("id, status")
+      .eq("user_id", userId)
+      .in("status", ["pending", "confirmed", "shipped"]);
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      hasActiveOrder: activeOrders && activeOrders.length > 0,
+      activeOrder: activeOrders?.[0] ?? null,
+    };
+  });
+
+export const createOrder = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      items: z.array(
+        z.object({
+          product_id: z.string().uuid(),
+          qty: z.number().min(1),
+          price_at_purchase: z.number().min(0),
+        }),
+      ).min(1),
+      shipping_address: z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        street: z.string().min(1),
+        city: z.string().min(1),
+        province: z.string().min(1),
+        zip: z.string().min(1),
+      }),
+      total_amount: z.number().min(0),
+      payment_method: z.literal("cash_on_delivery"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id ?? null;
+
+    if (!userId) {
+      throw new Error("Authentication required. Please sign in to place an order.");
+    }
+
+    // Verify email_verified status in user profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email_verified")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile || !profile.email_verified) {
+      throw new Error("Your email has not been verified yet. Please verify your email before placing an order.");
+    }
+
+    // Rate limit check: ensure user doesn't have an active order
+    const { data: activeOrders, error: activeOrdersError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("user_id", userId)
+      .in("status", ["pending", "confirmed", "shipped"]);
+
+    if (activeOrdersError) {
+      throw activeOrdersError;
+    }
+
+    if (activeOrders && activeOrders.length > 0) {
+      throw new Error("You already have an active order. You can only place a new order once your current order is completed or cancelled.");
+    }
+
+    const productIds = Array.from(new Set(data.items.map((item) => item.product_id)));
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id,name,price,stock_qty,is_active")
+      .in("id", productIds);
+
+    if (productsError) {
+      throw productsError;
+    }
+
+    const productMap = new Map(products?.map((product) => [product.id, product]));
+
+    for (const item of data.items) {
+      const product = productMap.get(item.product_id);
+      if (!product || !product.is_active) {
+        throw new Error("One or more products are unavailable.");
+      }
+      const available = product.stock_qty ?? 0;
+      if (item.qty > available) {
+        throw new Error(`Not enough stock for ${product.name}.`);
+      }
+      if (item.price_at_purchase !== product.price) {
+        throw new Error(`Pricing mismatch for ${product.name}. Please refresh your cart.`);
+      }
+    }
+
+    const originalStock = new Map<string, number>();
+    const updatedProductIds: string[] = [];
+
+    for (const item of data.items) {
+      const product = productMap.get(item.product_id)!;
+      originalStock.set(item.product_id, product.stock_qty ?? 0);
+
+      const { data: updated, error: updateError } = await supabase
+        .from("products")
+        .update({ stock_qty: (product.stock_qty ?? 0) - item.qty })
+        .eq("id", item.product_id)
+        .gte("stock_qty", item.qty)
+        .select("id");
+
+      if (updateError || !updated || updated.length === 0) {
+        for (const rollbackId of updatedProductIds) {
+          const rollbackQty = originalStock.get(rollbackId) ?? 0;
+          await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+        }
+        throw new Error(`Failed to reserve stock for ${product.name}. Please try again.`);
+      }
+
+      updatedProductIds.push(item.product_id);
+    }
+
+    const orderPayload = {
+      user_id: userId,
+      total_amount: data.total_amount,
+      status: "pending",
+      shipping_address: data.shipping_address,
+    };
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert(orderPayload)
+      .select("id")
+      .single();
+
+    if (orderError || !order) {
+      for (const rollbackId of updatedProductIds) {
+        const rollbackQty = originalStock.get(rollbackId) ?? 0;
+        await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+      }
+      throw orderError ?? new Error("Failed to create order.");
+    }
+
+    const orderItems = data.items.map((item) => ({
+      order_id: order.id,
+      product_id: item.product_id,
+      qty: item.qty,
+      price_at_purchase: item.price_at_purchase,
+    }));
+
+    const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+    if (itemsError) {
+      for (const rollbackId of updatedProductIds) {
+        const rollbackQty = originalStock.get(rollbackId) ?? 0;
+        await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+      }
+      throw itemsError;
+    }
+
+    return { id: order.id };
+  });
+
 export const getAdminProducts = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
@@ -242,9 +438,9 @@ export const getAdminProducts = createServerFn({ method: "GET" }).handler(async 
 
 export const toggleProductActive = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().uuid(), is_active: z.boolean(), accessToken: z.string().optional() }))
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request, data.accessToken);
-    const supabase = getSupabaseServer(request);
+  .handler(async ({ data }) => {
+    await verifyAdmin(undefined, data.accessToken);
+    const supabase = getSupabaseServer();
 
     const { error } = await supabase
       .from("products")
@@ -260,9 +456,9 @@ export const toggleProductActive = createServerFn({ method: "POST" })
 
 export const deleteProduct = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().uuid(), accessToken: z.string().optional() }))
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request, data.accessToken);
-    const supabase = getSupabaseServer(request);
+  .handler(async ({ data }) => {
+    await verifyAdmin(undefined, data.accessToken);
+    const supabase = getSupabaseServer();
 
     // Fetch product to get images
     const { data: product, error: fetchError } = await supabase
@@ -403,9 +599,9 @@ export const createProduct = createServerFn({ method: "POST" })
       accessToken: z.string().optional(),
     }),
   )
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request, data.accessToken);
-    const supabase = getSupabaseServer(request);
+  .handler(async ({ data }) => {
+    await verifyAdmin(undefined, data.accessToken);
+    const supabase = getSupabaseServer();
 
     const { data: created, error } = await supabase
       .from("products")
@@ -446,9 +642,9 @@ export const updateProduct = createServerFn({ method: "POST" })
       accessToken: z.string().optional(),
     }),
   )
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request, data.accessToken);
-    const supabase = getSupabaseServer(request);
+  .handler(async ({ data }) => {
+    await verifyAdmin(undefined, data.accessToken);
+    const supabase = getSupabaseServer();
 
     const { data: updated, error } = await supabase
       .from("products")
@@ -582,9 +778,9 @@ export const getOrderDetails = createServerFn({ method: "GET" })
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().uuid(), status: z.string().min(1) }))
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request);
-    const supabase = getSupabaseServer(request);
+  .handler(async ({ data }) => {
+    await verifyAdmin();
+    const supabase = getSupabaseServer();
 
     const { data: updated, error } = await supabase
       .from("orders")
@@ -698,8 +894,8 @@ export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async 
 
 export const uploadProductImage = createServerFn({ method: "POST" })
   .inputValidator(z.object({ fileName: z.string().min(1), base64: z.string().min(1), accessToken: z.string().optional() }))
-  .handler(async ({ data, request }) => {
-    await verifyAdmin(request, data.accessToken);
+  .handler(async ({ data }) => {
+    await verifyAdmin(undefined, data.accessToken);
 
     const { Buffer } = await import("node:buffer");
     const mimeType = data.base64.match(/^data:(.*);base64,/)?.[1] ?? "application/octet-stream";
@@ -747,7 +943,7 @@ export const uploadProductImage = createServerFn({ method: "POST" })
 
     // Fallback to Supabase if R2 not configured
     console.log("[Supabase] R2 not configured, using Supabase Storage");
-    const supabase = getSupabaseServer(request);
+    const supabase = getSupabaseServer();
     const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, buffer, {
       contentType: "image/*",
       upsert: false,
@@ -757,11 +953,250 @@ export const uploadProductImage = createServerFn({ method: "POST" })
       throw uploadError;
     }
 
-    const { data: publicData, error: urlError } = await supabase.storage.from("product-images").getPublicUrl(filePath);
-    if (urlError || !publicData) {
-      throw urlError ?? new Error("Failed to generate public URL.");
+    const { data: publicData } = await supabase.storage.from("product-images").getPublicUrl(filePath);
+    if (!publicData) {
+      throw new Error("Failed to generate public URL.");
     }
 
     console.log("[Supabase] Upload successful:", publicData.publicUrl);
     return { publicUrl: publicData.publicUrl };
+  });
+
+// ===== Authentication & User Profile Functions =====
+
+export const signUpWithProfile = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      email: z.string().email("Invalid email address"),
+      password: z.string().min(8, "Password must be at least 8 characters"),
+      username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
+      address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
+    })
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+
+    // Check if user already exists in profiles
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", data.email.toLowerCase())
+      .single();
+
+    if (existingUser) {
+      throw new Error("An account with this email already exists. Please sign in instead.");
+    }
+
+    // Check if user already exists in auth (partial signup may have left an auth user behind)
+    try {
+      const { data: authUsersData, error: authUsersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+      if (!authUsersError && authUsersData?.users?.some((user) => user.email?.toLowerCase() === data.email.toLowerCase())) {
+        throw new Error("An account with this email already exists. Please sign in instead.");
+      }
+    } catch {
+      // Ignore admin lookup failures and continue with signup flow.
+    }
+
+    // Check if username is taken
+    const { data: existingUsername } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", data.username.toLowerCase())
+      .single();
+
+    if (existingUsername) {
+      throw new Error("This username is already taken");
+    }
+
+    let userId: string;
+    let message = "Account created! Check your email to verify your account before logging in.";
+
+    if (process.env.RESEND_API_KEY) {
+      console.log("[Resend] Sending verification email via Resend API...");
+
+      // Check for orphaned auth user (exists in auth but not in profiles — from a previous failed signup).
+      // If found, clean it up so the user can re-register.
+      try {
+        const { data: authUsersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        const existingAuthUser = authUsersData?.users?.find(
+          (u) => u.email?.toLowerCase() === data.email.toLowerCase()
+        );
+        if (existingAuthUser && existingAuthUser.id) {
+          console.log("[Resend] Found orphaned auth user, cleaning up:", existingAuthUser.id);
+          await supabase.auth.admin.deleteUser(existingAuthUser.id);
+        }
+      } catch (cleanupErr) {
+        console.warn("[Resend] Could not check/cleanup orphaned auth user:", cleanupErr);
+      }
+
+      // Generate signup confirmation link via Supabase admin auth API
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: "signup",
+        email: data.email,
+        password: data.password,
+        options: {
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/verify-email`,
+        }
+      });
+
+      if (linkError || !linkData?.user?.id || !linkData?.properties?.action_link) {
+        const errMsg = linkError?.message ?? "Failed to generate signup verification link.";
+        console.error("[Resend] generateLink error:", errMsg);
+        throw new Error(errMsg);
+      }
+
+      userId = linkData.user.id;
+
+      // Send the confirmation email via Resend API
+      const resendKey = process.env.RESEND_API_KEY;
+      const resendFrom = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+      
+      const resendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `Peach Craft <${resendFrom}>`,
+          to: data.email,
+          subject: "Confirm your signup - Peach Craft",
+          html: `
+            <h3>Welcome to Peach Craft!</h3>
+            <p>Please confirm your email address by clicking the link below:</p>
+            <p><a href="${linkData.properties.action_link}" style="display:inline-block;background:#8ca58c;color:white;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:bold;">Verify Email Address</a></p>
+            <p>If you did not sign up for an account, you can safely ignore this email.</p>
+          `,
+        }),
+      });
+
+      if (!resendRes.ok) {
+        const resendErr = await resendRes.text();
+        console.error("[Resend] API Error:", resendErr);
+        // Clean up created user if sending email fails so they can retry
+        await supabase.auth.admin.deleteUser(userId);
+        throw new Error(`Failed to send verification email via Resend: ${resendErr}`);
+      }
+    } else {
+      // Sign up user with Supabase Auth (with email verification enabled using Supabase SMTP)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/verify-email`,
+        },
+      });
+
+      if (authError) {
+        const lowerMessage = authError.message.toLowerCase();
+        if (lowerMessage.includes("email rate limit exceeded")) {
+          throw new Error(
+            "Email send limit exceeded. Please wait a few minutes before trying again, or check your inbox for the verification email."
+          );
+        }
+        if (lowerMessage.includes("error sending confirmation email")) {
+          throw new Error(
+            "Error sending confirmation email. If you configured Resend.com SMTP in Supabase, make sure your Sender Email is 'onboarding@resend.dev' (or a verified domain) and you are signing up with your Resend-registered email address."
+          );
+        }
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user?.id) {
+        throw new Error("Failed to create user account");
+      }
+
+      userId = authData.user.id;
+    }
+
+    // Create user profile
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: userId,
+      email: data.email.toLowerCase(),
+      username: data.username.toLowerCase(),
+      address: data.address,
+      email_verified: false,
+    });
+
+    if (profileError) {
+      // Clean up auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(userId);
+      throw new Error("Failed to create user profile. Please try again.");
+    }
+
+    return {
+      success: true,
+      message,
+      userId,
+    };
+  });
+
+export const verifyEmail = createServerFn({ method: "POST" })
+  .inputValidator(
+    z
+      .object({
+        token: z.string().min(1).optional(),
+        token_hash: z.string().min(1).optional(),
+        email: z.string().email("Invalid email address").optional(),
+        type: z.string().optional(),
+      })
+      .refine(
+        (value) => (value.token && value.email) || value.token_hash,
+        {
+          message: "A token and email or a token_hash are required",
+          path: ["token"],
+        }
+      )
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+
+    const verifyPayload: Record<string, string> = {};
+    if (data.token_hash) {
+      verifyPayload.token_hash = data.token_hash;
+    } else {
+      verifyPayload.token = data.token!;
+      verifyPayload.email = data.email!;
+    }
+    verifyPayload.type = data.type ?? "signup";
+
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp(verifyPayload as any);
+
+    if (verifyError || !verifyData?.user?.id) {
+      throw new Error("Invalid or expired verification link. Please try signing up again.");
+    }
+
+    // Update profile to mark email as verified
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ email_verified: true })
+      .eq("id", verifyData.user.id);
+
+    if (updateError) {
+      throw new Error("Failed to verify email. Please try again.");
+    }
+
+    return {
+      success: true,
+      message: "Email verified successfully! You can now log in.",
+      userId: verifyData.user.id,
+    };
+  });
+
+export const checkEmailVerification = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ userId: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("email_verified")
+      .eq("id", data.userId)
+      .single();
+
+    if (error || !profile) {
+      throw new Error("User profile not found");
+    }
+
+    return { emailVerified: profile.email_verified ?? false };
   });

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
 import { getStoreDetails, uploadStoreImage, updateStoreDetails } from "@/lib/api/storeDetails.functions";
 
 export const Route = createFileRoute("/admin/website-settings")({
@@ -74,6 +75,12 @@ function WebsiteSettings() {
     setPreview(url);
   }
 
+  const getAccessToken = async () => {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token;
+  };
+
   async function toBase64(file: File) {
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -99,15 +106,17 @@ function WebsiteSettings() {
       let storeLogoUrl = form.store_logo;
       let heroBannerUrl = form.hero_banner;
 
+      const accessToken = await getAccessToken();
+
       if (logoFile) {
         const base64 = await toBase64(logoFile);
-        const uploaded = await uploadStoreImage({ data: { fileName: logoFile.name, base64 } });
+        const uploaded = await uploadStoreImage({ data: { fileName: logoFile.name, base64, accessToken } });
         storeLogoUrl = uploaded.publicUrl;
       }
 
       if (bannerFile) {
         const base64 = await toBase64(bannerFile);
-        const uploaded = await uploadStoreImage({ data: { fileName: bannerFile.name, base64 } });
+        const uploaded = await uploadStoreImage({ data: { fileName: bannerFile.name, base64, accessToken } });
         heroBannerUrl = uploaded.publicUrl;
       }
 
@@ -123,6 +132,7 @@ function WebsiteSettings() {
         twitter_url: form.twitter_url ?? null,
         footer_text: form.footer_text ?? null,
         hero_banner: heroBannerUrl ?? null,
+        accessToken,
       };
 
       await updateStoreDetails({ data: payload });

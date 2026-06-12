@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Eye, ShoppingBag, Heart } from "lucide-react";
+import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/lib/supabase";
 
@@ -12,11 +13,24 @@ const namedSwatchColors: Record<string, string> = {
 
 export function ProductCard({ product }: { product: Product }) {
   const [liked, setLiked] = useState(false);
+  const { items, addItem } = useCart();
   const imageSrc = product.images?.[0] ?? null;
   const swatchColor = product.swatch ?? "#f7c8d9";
   const backgroundColor = swatchColor.startsWith("#")
     ? swatchColor
     : namedSwatchColors[swatchColor] ?? "#f7c8d9";
+  const existingCartItem = items.find((item) => item.product_id === product.id);
+  const isOutOfStock = product.soldOut || (product.stock_qty != null && existingCartItem?.qty >= product.stock_qty);
+
+  const handleAddToCart = () => {
+    try {
+      addItem(product, 1);
+    } catch (error) {
+      if (error instanceof Error) {
+        window.alert(error.message);
+      }
+    }
+  };
 
   return (
     <article
@@ -84,8 +98,9 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="text-primary font-semibold">₱{product.price.toLocaleString()}</p>
           <button
             type="button"
-            disabled={product.soldOut}
-            aria-label={product.soldOut ? "Sold out" : `Add ${product.name} to cart`}
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+            aria-label={isOutOfStock ? "Unable to add to cart" : `Add ${product.name} to cart`}
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold",
               "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
@@ -93,7 +108,7 @@ export function ProductCard({ product }: { product: Product }) {
             )}
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            {product.soldOut ? "Sold out" : "Add"}
+            {product.soldOut ? "Sold out" : isOutOfStock ? "Max quantity" : "Add"}
           </button>
         </div>
       </div>

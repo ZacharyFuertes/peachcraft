@@ -50,6 +50,16 @@ export type Product = {
   created_at?: string | null;
 };
 
+export type Profile = {
+  id: string;
+  username: string;
+  email: string;
+  address?: string | null;
+  email_verified?: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 type SupabaseServerOptions = {
   authOnly?: boolean;
 };

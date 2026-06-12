@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { getSupabaseClient } from "@/lib/supabase";
+import { checkEmailVerification } from "@/lib/api/supabase.functions";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -32,6 +33,28 @@ function LoginPage() {
     if (authError) {
       setError(authError.message);
       return;
+    }
+
+    if (!data.user?.id) {
+      setError("Failed to sign in. Please try again.");
+      return;
+    }
+
+    // Check if email is verified for non-admin users
+    if (!isAdminAttempt) {
+      try {
+        const verification = await checkEmailVerification({ data: { userId: data.user.id } });
+
+        if (!verification.emailVerified) {
+          setError(
+            "Your email has not been verified yet. Please check your email for a verification link and try again."
+          );
+          return;
+        }
+      } catch (verifyError) {
+        console.error("Email verification check failed:", verifyError);
+        // Continue with login even if verification check fails for backward compatibility
+      }
     }
 
     const userEmail = data?.user?.email?.toLowerCase() ?? "";
@@ -83,7 +106,7 @@ function LoginPage() {
             </p>
           )}
 
-          {error && <p className="text-sm text-[#f87171]">{error}</p>}
+          {error && <p className="rounded-md bg-red-50 p-3 text-sm text-[#f87171]">{error}</p>}
 
           <button
             type="button"
@@ -95,7 +118,7 @@ function LoginPage() {
           </button>
 
           <p className="text-center text-sm text-[var(--foreground)]/75">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link to="/signup" className="font-semibold text-[var(--sage)] hover:text-[var(--sage-deep)]">
               Create account
             </Link>
