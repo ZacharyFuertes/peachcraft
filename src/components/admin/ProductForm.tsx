@@ -394,11 +394,11 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
             <div className="md:col-span-2 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <label className="text-sm font-semibold text-foreground">Description</label>
-                <span className="text-xs text-foreground/70">{description.length} / 500</span>
+                <span className="text-xs text-foreground/70">{description.length}</span>
               </div>
               <textarea
                 value={description}
-                onChange={(event) => setDescription(event.target.value.slice(0, 500))}
+                onChange={(event) => setDescription(event.target.value)}
                 rows={5}
                 className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
               />

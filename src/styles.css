@@ -148,6 +148,25 @@
   }
 }
 
+/* Custom scrollbar for product description in quick-view modal */
+.product-description {
+  scrollbar-width: thin;
+  scrollbar-color: var(--blush) transparent;
+}
+.product-description::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.product-description::-webkit-scrollbar-track {
+  background: transparent;
+}
+.product-description::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--blush) 70%, black 5%);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
 @utility font-display {
   font-family: var(--font-display);
 }
