@@ -68,6 +68,17 @@ export type CartOrderItem = {
   price_at_purchase: number;
 };
 
+export type CartItemRow = {
+  item_cart_id: string;
+  product_id: string;
+  qty: number;
+  price: number;
+  name: string;
+  image?: string | null;
+  swatch?: string | null;
+  stock_qty?: number | null;
+};
+
 export type OrderShippingAddress = {
   name: string;
   email: string;
@@ -976,6 +987,31 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = getSupabaseServer();
 
+    // Rate-limit: allow a small number of signup attempts per IP per hour.
+    // Note: `data.ip` is expected to be provided by the client (e.g. via ipify).
+    // If no IP is provided, this will count under the 'unknown' bucket.
+    try {
+      const MAX_PER_HOUR = 5;
+      const ip = (data as any).ip ? String((data as any).ip) : "unknown";
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { data: recentAttempts } = await supabase
+        .from("signup_attempts")
+        .select("id")
+        .gte("created_at", hourAgo)
+        .eq("ip", ip);
+
+      if (recentAttempts && recentAttempts.length >= MAX_PER_HOUR) {
+        throw new Error("Too many signup attempts from this IP. Please try again later.");
+      }
+
+      // Record this attempt (best-effort; ignore insert failures)
+      await supabase.from("signup_attempts").insert({ ip });
+    } catch (rateErr) {
+      // If the rate-limit check threw, rethrow to the client.
+      if (rateErr instanceof Error) throw rateErr;
+    }
+
     // Check if user already exists in profiles
     const { data: existingUser } = await supabase
       .from("profiles")
@@ -1008,114 +1044,77 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       throw new Error("This username is already taken");
     }
 
+    // Create user via Supabase Admin API (service role required for `.admin.createUser`).
+    // This bypasses the automatic verification email flow and lets us mark the
+    // profile as verified immediately for a smoother UX while keeping a rate-limit.
     let userId: string;
-    let message = "Account created! Check your email to verify your account before logging in.";
+    let message = "Account created. You can sign in now.";
 
-    if (process.env.RESEND_API_KEY) {
-      console.log("[Resend] Sending verification email via Resend API...");
-
-      // Check for orphaned auth user (exists in auth but not in profiles — from a previous failed signup).
-      // If found, clean it up so the user can re-register.
-      try {
-        const { data: authUsersData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-        const existingAuthUser = authUsersData?.users?.find(
-          (u) => u.email?.toLowerCase() === data.email.toLowerCase()
-        );
-        if (existingAuthUser && existingAuthUser.id) {
-          console.log("[Resend] Found orphaned auth user, cleaning up:", existingAuthUser.id);
-          await supabase.auth.admin.deleteUser(existingAuthUser.id);
-        }
-      } catch (cleanupErr) {
-        console.warn("[Resend] Could not check/cleanup orphaned auth user:", cleanupErr);
-      }
-
-      // Generate signup confirmation link via Supabase admin auth API
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: "signup",
+    try {
+      const { data: createData, error: createError } = await supabase.auth.admin.createUser({
         email: data.email,
         password: data.password,
-        options: {
-          redirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/verify-email`,
+      } as any);
+
+      if (createError) {
+        throw createError;
+      }
+
+      // `createData.user.id` is expected. If SDK shape differs, guard accordingly.
+      userId = (createData as any)?.user?.id ?? (createData as any)?.id;
+      if (!userId) throw new Error("Failed to create user account");
+
+      // Try to mark auth user as confirmed via admin API to avoid Supabase
+      // preventing sign-in due to unconfirmed email. This uses best-effort
+      // calls and will not block signup on failure.
+      try {
+        const adminApi = (supabase.auth as any).admin;
+        if (adminApi?.updateUserById) {
+          await adminApi.updateUserById(userId, { email_confirm: true });
+        } else if (adminApi?.updateUser) {
+          await adminApi.updateUser(userId, { email_confirm: true });
+        } else if (adminApi?.update) {
+          await adminApi.update(userId, { email_confirm: true });
         }
-      });
-
-      if (linkError || !linkData?.user?.id || !linkData?.properties?.action_link) {
-        const errMsg = linkError?.message ?? "Failed to generate signup verification link.";
-        console.error("[Resend] generateLink error:", errMsg);
-        throw new Error(errMsg);
+      } catch (confirmErr) {
+        // ignore — fallback below handles signIn issues via profile flag
+        console.warn("Could not programmatically confirm auth user:", confirmErr);
       }
-
-      userId = linkData.user.id;
-
-      // Send the confirmation email via Resend API
-      const resendKey = process.env.RESEND_API_KEY;
-      const resendFrom = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
-      
-      const resendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: `Peach Craft <${resendFrom}>`,
-          to: data.email,
-          subject: "Confirm your signup - Peach Craft",
-          html: `
-            <h3>Welcome to Peach Craft!</h3>
-            <p>Please confirm your email address by clicking the link below:</p>
-            <p><a href="${linkData.properties.action_link}" style="display:inline-block;background:#8ca58c;color:white;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:bold;">Verify Email Address</a></p>
-            <p>If you did not sign up for an account, you can safely ignore this email.</p>
-          `,
-        }),
-      });
-
-      if (!resendRes.ok) {
-        const resendErr = await resendRes.text();
-        console.error("[Resend] API Error:", resendErr);
-        // Clean up created user if sending email fails so they can retry
-        await supabase.auth.admin.deleteUser(userId);
-        throw new Error(`Failed to send verification email via Resend: ${resendErr}`);
-      }
-    } else {
-      // Sign up user with Supabase Auth (with email verification enabled using Supabase SMTP)
+    } catch (createErr) {
+      // If admin.createUser isn't permitted in your environment (no service role),
+      // fall back to signUp and continue but note this may still send verification
+      // emails depending on Supabase project settings.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: {
-          emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/verify-email`,
-        },
       });
-
-      if (authError) {
-        const lowerMessage = authError.message.toLowerCase();
-        if (lowerMessage.includes("email rate limit exceeded")) {
-          throw new Error(
-            "Email send limit exceeded. Please wait a few minutes before trying again, or check your inbox for the verification email."
-          );
-        }
-        if (lowerMessage.includes("error sending confirmation email")) {
-          throw new Error(
-            "Error sending confirmation email. If you configured Resend.com SMTP in Supabase, make sure your Sender Email is 'onboarding@resend.dev' (or a verified domain) and you are signing up with your Resend-registered email address."
-          );
-        }
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user?.id) {
-        throw new Error("Failed to create user account");
-      }
-
+      if (authError) throw new Error(authError.message);
+      if (!authData.user?.id) throw new Error("Failed to create user account");
       userId = authData.user.id;
+
+      // If we used signUp fallback, try to immediately mark the auth user as confirmed
+      // via admin API (best-effort). This helps avoid Supabase blocking sign-in.
+      try {
+        const adminApi = (supabase.auth as any).admin;
+        if (adminApi?.updateUserById) {
+          await adminApi.updateUserById(userId, { email_confirm: true });
+        } else if (adminApi?.updateUser) {
+          await adminApi.updateUser(userId, { email_confirm: true });
+        } else if (adminApi?.update) {
+          await adminApi.update(userId, { email_confirm: true });
+        }
+      } catch (confirmErr) {
+        console.warn("Could not programmatically confirm auth user (fallback):", confirmErr);
+      }
     }
 
-    // Create user profile
+    // Create user profile and mark email as verified immediately
     const { error: profileError } = await supabase.from("profiles").insert({
       id: userId,
       email: data.email.toLowerCase(),
       username: data.username.toLowerCase(),
       address: data.address,
-      email_verified: false,
+      email_verified: true,
     });
 
     if (profileError) {
@@ -1130,6 +1129,347 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       userId,
     };
   });
+
+// Persist cart for authenticated user
+export const saveCartForUser = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      items: z.array(
+        z.object({
+          product_id: z.string(),
+          name: z.string(),
+          price: z.number(),
+          qty: z.number(),
+          image: z.string().nullable().optional(),
+          swatch: z.string().nullable().optional(),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData.user?.id ?? null;
+    if (!userId) throw new Error("Authentication required to save cart.");
+
+    const { error } = await supabase
+      .from("carts")
+      .upsert({ user_id: userId, items: data.items, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const getCartForUser = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = getSupabaseServer();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
+  if (!userId) return { items: [] };
+
+  const { data: cartData, error } = await supabase.from("carts").select("items").eq("user_id", userId).single();
+  if (error) return { items: [] };
+  return { items: (cartData as any)?.items ?? [] };
+});
+
+export const getCartItemsForUser = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = getSupabaseServer();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
+  if (!userId) return { items: [] as CartItemRow[] };
+
+  const { data, error } = await supabase
+    .from("cart_items")
+    .select("id,product_id,qty,price,name,image,swatch,stock_qty")
+    .eq("user_id", userId);
+
+  if (error) return { items: [] };
+
+  return {
+    items: (data ?? []).map((item: any) => ({
+      item_cart_id: item.id,
+      product_id: item.product_id,
+      qty: item.qty,
+      price: item.price,
+      name: item.name,
+      image: item.image,
+      swatch: item.swatch,
+      stock_qty: item.stock_qty,
+    })),
+  };
+});
+
+async function getAuthenticatedUserId(supabase: ReturnType<typeof getSupabaseServer>) {
+  const { data: authData } = await supabase.auth.getUser();
+  return authData.user?.id ?? null;
+}
+
+async function enforceCartAddRateLimit(supabase: ReturnType<typeof getSupabaseServer>, userId: string) {
+  const windowStart = new Date(Date.now() - 60_000).toISOString();
+  const { count, error } = await supabase
+    .from("cart_add_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", windowStart);
+
+  if (error) throw error;
+  if ((count ?? 0) >= 20) {
+    throw new Error("Too many cart requests. Please wait a moment.");
+  }
+
+  const { error: insertError } = await supabase.from("cart_add_attempts").insert({ user_id: userId });
+  if (insertError) throw insertError;
+}
+
+export const addCartItem = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      product_id: z.string(),
+      qty: z.number().min(1),
+      price: z.number(),
+      name: z.string(),
+      image: z.string().nullable().optional(),
+      swatch: z.string().nullable().optional(),
+      stock_qty: z.number().nullable().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const userId = await getAuthenticatedUserId(supabase);
+    if (!userId) throw new Error("Authentication required to add a cart item.");
+
+    await enforceCartAddRateLimit(supabase, userId);
+
+    const nextQty = data.qty;
+    const stockQuantity = data.stock_qty ?? Infinity;
+    if (stockQuantity !== Infinity && nextQty > stockQuantity) {
+      throw new Error(`Only ${stockQuantity} items are available for this product.`);
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("cart_items")
+      .select("id,qty")
+      .eq("user_id", userId)
+      .eq("product_id", data.product_id)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    const combinedQty = existing ? existing.qty + data.qty : data.qty;
+    if (stockQuantity !== Infinity && combinedQty > stockQuantity) {
+      throw new Error(`Only ${stockQuantity} items are available for this product.`);
+    }
+
+    // Enforce max 25 units per product per user
+    const MAX_ITEMS_PER_PRODUCT = 25;
+    if (combinedQty > MAX_ITEMS_PER_PRODUCT) {
+      throw new Error(
+        `You can only add up to ${MAX_ITEMS_PER_PRODUCT} units of ${data.name} in your cart.`,
+      );
+    }
+
+    const payload = {
+      user_id: userId,
+      product_id: data.product_id,
+      qty: combinedQty,
+      price: data.price,
+      name: data.name,
+      image: data.image ?? null,
+      swatch: data.swatch ?? null,
+      stock_qty: data.stock_qty ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: savedItem, error: upsertError } = await supabase
+      .from("cart_items")
+      .upsert(payload, { onConflict: ["user_id", "product_id"] })
+      .select("id,product_id,qty,price,name,image,swatch,stock_qty")
+      .single();
+
+    if (upsertError) throw upsertError;
+
+    return {
+      item: {
+        item_cart_id: savedItem.id,
+        product_id: savedItem.product_id,
+        qty: savedItem.qty,
+        price: savedItem.price,
+        name: savedItem.name,
+        image: savedItem.image,
+        swatch: savedItem.swatch,
+        stock_qty: savedItem.stock_qty,
+      },
+    };
+  });
+
+export const mergeCartItems = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      items: z.array(
+        z.object({
+          product_id: z.string(),
+          qty: z.number().min(1),
+          price: z.number(),
+          name: z.string(),
+          image: z.string().nullable().optional(),
+          swatch: z.string().nullable().optional(),
+          stock_qty: z.number().nullable().optional(),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const userId = await getAuthenticatedUserId(supabase);
+    if (!userId) throw new Error("Authentication required to merge cart items.");
+
+    const mergedItems = new Map<string, { qty: number; item: typeof data.items[number] }>();
+    for (const item of data.items) {
+      const existing = mergedItems.get(item.product_id);
+      if (existing) {
+        existing.qty += item.qty;
+      } else {
+        mergedItems.set(item.product_id, { qty: item.qty, item });
+      }
+    }
+
+    const productIds = Array.from(mergedItems.keys());
+    const { data: existingItems, error: existingError } = await supabase
+      .from("cart_items")
+      .select("product_id,qty")
+      .eq("user_id", userId)
+      .in("product_id", productIds);
+
+    if (existingError) throw existingError;
+
+    const existingQtyMap = new Map<string, number>();
+    for (const row of existingItems ?? []) {
+      existingQtyMap.set(row.product_id, row.qty);
+    }
+
+    const MAX_ITEMS_PER_PRODUCT = 25;
+
+    for (const [, record] of mergedItems) {
+      const base = record.item;
+      const qty = record.qty + (existingQtyMap.get(base.product_id) ?? 0);
+      if (qty > MAX_ITEMS_PER_PRODUCT) {
+        throw new Error(
+          `You can only add up to ${MAX_ITEMS_PER_PRODUCT} units of ${base.name} in your cart.`,
+        );
+      }
+    }
+
+    const upsertItems = Array.from(mergedItems.entries()).map(([product_id, record]) => {
+      const base = record.item;
+      const qty = record.qty + (existingQtyMap.get(product_id) ?? 0);
+      return {
+        user_id: userId,
+        product_id,
+        qty,
+        price: base.price,
+        name: base.name,
+        image: base.image ?? null,
+        swatch: base.swatch ?? null,
+        stock_qty: base.stock_qty ?? null,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    const { error: upsertError } = await supabase
+      .from("cart_items")
+      .upsert(upsertItems, { onConflict: ["user_id", "product_id"] });
+
+    if (upsertError) throw upsertError;
+    return { success: true };
+  });
+
+export const updateCartItemQuantity = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      item_cart_id: z.string().uuid(),
+      qty: z.number().min(0),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const userId = await getAuthenticatedUserId(supabase);
+    if (!userId) throw new Error("Authentication required to update cart items.");
+
+    if (data.qty === 0) {
+      const { error } = await supabase
+        .from("cart_items")
+        .delete()
+        .eq("id", data.item_cart_id)
+        .eq("user_id", userId);
+      if (error) throw error;
+      return { success: true };
+    }
+
+    const { error } = await supabase
+      .from("cart_items")
+      .update({ qty: data.qty, updated_at: new Date().toISOString() })
+      .eq("id", data.item_cart_id)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const removeCartItem = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      item_cart_id: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const userId = await getAuthenticatedUserId(supabase);
+    if (!userId) throw new Error("Authentication required to remove cart items.");
+
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("id", data.item_cart_id)
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const clearCartItems = createServerFn({ method: "POST" })
+  .handler(async () => {
+    const supabase = getSupabaseServer();
+    const userId = await getAuthenticatedUserId(supabase);
+    if (!userId) throw new Error("Authentication required to clear cart items.");
+
+    const { error } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("user_id", userId);
+    if (error) throw error;
+    return { success: true };
+  });
+
+export const getMyOrders = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = getSupabaseServer();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
+  if (!userId) return [] as any[];
+
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select("id,status,total_amount,created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return (orders ?? []).map((o) => ({
+    id: o.id,
+    status: o.status,
+    total_amount: o.total_amount,
+    created_at: o.created_at,
+  }));
+});
 
 export const verifyEmail = createServerFn({ method: "POST" })
   .inputValidator(

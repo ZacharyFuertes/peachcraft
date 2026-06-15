@@ -71,12 +71,24 @@ function SignupPage() {
     setIsLoading(true);
 
     try {
+      // Try to fetch client IP for server-side per-IP rate limiting. If this
+      // fails, continue without it (server will fall back to 'unknown').
+      let ip: string | undefined = undefined;
+      try {
+        const ipRes = await fetch("https://api.ipify.org?format=json");
+        if (ipRes.ok) {
+          const ipJson = await ipRes.json();
+          ip = ipJson.ip;
+        }
+      } catch {}
+
       const result = await signUpWithProfile({
         data: {
           email: formData.email,
           password: formData.password,
           username: formData.username,
           address: formData.address,
+          ip,
         },
       });
 
@@ -152,6 +164,7 @@ function SignupPage() {
             />
             {errors.email && <p className="mt-1 text-xs text-[#f87171]">{errors.email}</p>}
             <p className="mt-1 text-xs text-[var(--foreground)]/60">We'll send you a verification email to confirm your account</p>
+            <p className="mt-1 text-xs text-[var(--foreground)]/60">Your account will be active immediately after creating it.</p>
           </div>
 
           {/* Address */}

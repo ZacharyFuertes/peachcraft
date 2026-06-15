@@ -5,6 +5,7 @@ import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/icons/logo.svg?url";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getMyOrders } from "@/lib/api/supabase.functions";
 
 const nav = [
   { to: "/", label: "Home" },
@@ -38,6 +39,24 @@ export function SiteHeader() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user?.email ?? null);
+      (async () => {
+        try {
+          if (session?.user) {
+            const orders = await getMyOrders();
+            if (orders && Array.isArray(orders)) {
+              try {
+                window.localStorage.setItem("peachcraft-orders", JSON.stringify(orders));
+              } catch {}
+            }
+          } else {
+            try {
+              window.localStorage.removeItem("peachcraft-orders");
+            } catch {}
+          }
+        } catch {
+          // ignore
+        }
+      })();
     });
     return () => listener.subscription.unsubscribe();
   }, []);

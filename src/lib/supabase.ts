@@ -84,6 +84,23 @@ export function getSupabaseServer(request?: Request, options?: SupabaseServerOpt
     );
   }
 
+  // Auto-detect the request from TanStack Start's AsyncLocalStorage context
+  // when called inside a server function handler without an explicit request.
+  if (!request) {
+    try {
+      const storageKey = Symbol.for("tanstack-start:start-storage-context");
+      const storage = (globalThis as any)[storageKey];
+      if (storage) {
+        const ctx = storage.getStore();
+        if (ctx?.request) {
+          request = ctx.request;
+        }
+      }
+    } catch {
+      // Not running inside a TanStack Start request context
+    }
+  }
+
   return createClient(SUPABASE_URL_SERVER, key, {
     global: {
       headers: {
