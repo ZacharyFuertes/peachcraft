@@ -137,8 +137,8 @@ export function ProductCard({ product }: { product: Product }) {
               <DialogTitle>{product.name}</DialogTitle>
             </DialogHeader>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-              <div className="overflow-hidden bg-[rgba(255,255,255,0.85)] shadow-soft">
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr] min-w-0">
+              <div className="overflow-hidden bg-[rgba(255,255,255,0.85)] shadow-soft min-w-0">
                 <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full max-h-[32rem] overflow-hidden bg-white p-4">
                   {selectedImage ? (
                     <img
@@ -179,9 +179,9 @@ export function ProductCard({ product }: { product: Product }) {
                 ) : null}
               </div>
 
-              <div className="space-y-5">
-                <div className="rounded-3xl border border-border bg-background p-5 shadow-sm">
-                    <div className="flex items-center justify-between gap-4">
+              <div className="space-y-5 min-w-0">
+                <div className="rounded-3xl border border-border bg-background p-5 shadow-sm min-w-0">
+                    <div className="flex items-center justify-between gap-4 min-w-0">
                       <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                         {product.category ?? "Craft"}
                       </span>
@@ -189,8 +189,10 @@ export function ProductCard({ product }: { product: Product }) {
                     </div>
 
                     <h4 className="mt-4 text-sm font-semibold text-foreground">Product Description</h4>
-                    <div className="product-description mt-2 text-sm leading-6 text-foreground/80 max-h-72 sm:max-h-[24rem] overflow-auto pr-3">
-                      <p className="whitespace-pre-wrap">{product.description ?? "No additional details available for this product."}</p>
+                    <div className="product-description min-w-0 mt-2 w-full">
+                      <div className="description-scroll min-w-0 w-full max-h-[150px] overflow-y-auto overflow-x-hidden pr-2 text-sm leading-6 text-foreground/80 break-words whitespace-pre-wrap">
+                        <p className="min-w-0 break-words whitespace-pre-wrap">{product.description ?? "No additional details available for this product."}</p>
+                      </div>
                     </div>
                 </div>
 

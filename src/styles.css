@@ -150,17 +150,29 @@
 
 /* Custom scrollbar for product description in quick-view modal */
 .product-description {
+  min-width: 0;
+  width: 100%;
+}
+.description-scroll {
+  min-width: 0;
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
   scrollbar-width: thin;
   scrollbar-color: var(--blush) transparent;
 }
-.product-description::-webkit-scrollbar {
+.description-scroll::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-.product-description::-webkit-scrollbar-track {
+.description-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.product-description::-webkit-scrollbar-thumb {
+.description-scroll::-webkit-scrollbar-thumb {
   background: color-mix(in oklab, var(--blush) 70%, black 5%);
   border-radius: 9999px;
   border: 3px solid transparent;
