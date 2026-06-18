@@ -18,7 +18,7 @@ export function SiteFooter() {
             Get notified when new crafts drop
           </h2>
           <p className="mt-3 text-background/75 max-w-xl mx-auto">
-            Join 1,200+ kawaii collectors. Be the first to grab restocks and limited pieces before they sell out.
+            Be the first to grab restocks and limited pieces before they sell out.
           </p>
           <form
             onSubmit={(e) => {
@@ -44,7 +44,7 @@ export function SiteFooter() {
               {done ? "You're in! 🍑" : <>Join <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
-          <p className="mt-3 text-xs text-background/60">No spam — just sweet updates.</p>
+          <p className="mt-3 text-xs text-background/60">No spam, just shop updates.</p>
         </div>
       </section>
 

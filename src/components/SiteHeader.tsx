@@ -90,9 +90,7 @@ export function SiteHeader() {
         <span aria-hidden></span> Shop is OPEN for all orders
       </div>
       <div className="bg-blush text-blush-foreground text-sm py-2 text-center font-medium relative overflow-hidden">
-        <span className="relative z-10">
-          Free shipping on orders ₱1,000+ <span aria-hidden></span> mix &amp; match your fave crafts!
-        </span>
+        <span className="relative z-10">Free shipping on orders ₱1,000+</span>
         <span className="absolute inset-0 marquee-strip pointer-events-none" aria-hidden />
       </div>
 
