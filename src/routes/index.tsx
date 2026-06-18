@@ -52,13 +52,11 @@ function HomePage() {
               <Sparkles className="w-3.5 h-3.5 text-blush" aria-hidden /> New drop · Strawberry Dream Series
             </span>
             <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.05] text-brown">
-              Handcrafted with love,
-              <br />
-              <em className="not-italic text-primary font-display italic">made to delight</em>{" "}
-              <span aria-hidden></span>
+              Your shelf's most interesting story
+              
             </h1>
             <p className="mt-6 text-lg text-foreground/85 max-w-md leading-relaxed">
-              Welcome to Peach Craft! I make adorable fake cakes, kawaii storage boxes, and air-dry clay creations — each one sculpted by hand with a whole lot of heart.
+              Welcome to Peach Craft, the home of fake cakes and air-dry clay crafts, each one sculpted by hand with a whole lot of heart.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -79,13 +77,13 @@ function HomePage() {
             {/* Trust row */}
             <dl className="mt-10 grid grid-cols-3 gap-6 max-w-md">
               <div>
-                <dt className="text-xs uppercase tracking-wider text-foreground/60">Happy buyers</dt>
-                <dd className="mt-1 font-display text-2xl text-brown">1,200+</dd>
+                <dt className="text-xs uppercase tracking-wider text-foreground/60">SINCE</dt>
+                <dd className="mt-1 font-display text-2xl text-brown">2021</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wider text-foreground/60">Rating</dt>
+                <dt className="text-xs uppercase tracking-wider text-foreground/60">BASED IN</dt>
                 <dd className="mt-1 font-display text-2xl text-brown inline-flex items-center gap-1">
-                  4.9 <Star className="w-4 h-4 fill-blush text-blush" aria-hidden />
+                  Philippines 
                 </dd>
               </div>
               <div>
@@ -137,8 +135,8 @@ function HomePage() {
               },
               {
                 Icon: KawaiiIllustration,
-                title: "Kawaii & Cute",
-                desc: "Inspired by jellycat softness and pastel aesthetics, every craft is designed to make you smile and brighten your space.",
+                title: "Pretty useful",
+                desc: "Each piece is made to earn its place: fake cakes that open up for storage, clay crafts that add something to your space. Handmade to look good and actually be useful.",
               },
               {
                 Icon: PackagingIllustration,
@@ -202,13 +200,13 @@ function HomePage() {
       <section className="bg-blush text-blush-foreground py-12">
         <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_auto] items-center gap-6">
           <p className="font-display italic text-2xl sm:text-3xl text-center lg:text-left">
-            it's okay to feel all the sweetness
+            A few pieces are still available.
           </p>
           <Link
             to="/shop"
             className="justify-self-center inline-flex items-center gap-2 px-6 py-3 rounded-full bg-blush-foreground text-blush font-semibold hover:scale-105 transition-transform"
           >
-            Get restock alerts <ArrowRight className="w-4 h-4" />
+            Shop <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>

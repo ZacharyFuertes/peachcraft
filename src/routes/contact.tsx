@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Instagram, Send } from "lucide-react";
+import { Mail, Instagram, Send, Music2 } from "lucide-react";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -28,6 +28,7 @@ function ContactPage() {
           <ul className="mt-6 space-y-3 text-foreground/80">
             <li className="flex items-center gap-3"><Mail className="w-5 h-5 text-primary" aria-hidden /> hello@peachcraft.shop</li>
             <li className="flex items-center gap-3"><Instagram className="w-5 h-5 text-primary" aria-hidden /> @peach.craft</li>
+            <li className="flex items-center gap-3"><Music2 className="w-5 h-5 text-primary" aria-hidden /> @thepeachywitch</li>
           </ul>
         </div>
 
