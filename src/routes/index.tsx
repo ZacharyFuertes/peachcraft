@@ -193,15 +193,15 @@ function HomePage() {
               View All Crafts <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          {/* Compilation image (customer/stories grid) - place the image at /public/assets/compilation.jpg */}
-          <div className="mt-6 text-center">
-            <img
-              src="/assets/COMPILATIONPIC.png"
-              alt="Compilation of customer photos and stories"
-              loading="lazy"
-              className="mx-auto mt-6 shadow-soft w-full max-w-none object-cover rounded-none"
-            />
-          </div>
+          {/* compilation image moved outside container to be full-bleed */}
+        </div>
+        <div className="w-full mt-6">
+          <img
+            src="/assets/COMPILATIONPIC.png"
+            alt="Compilation of customer photos and stories"
+            loading="lazy"
+            className="block w-full h-auto object-cover shadow-soft rounded-none"
+          />
         </div>
       </section>
 
