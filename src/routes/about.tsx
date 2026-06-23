@@ -25,10 +25,17 @@ function AboutPage() {
               Hi, I'm the hands behind <em className="text-primary not-italic italic">Peach Craft</em>
             </h1>
             <p className="mt-5 text-lg text-foreground/85 leading-relaxed">
-              Peach Craft started on a kitchen table in 2023 with a lump of air-dry clay and too many late-night cake cravings. What began as a hobby is now a tiny studio where I sculpt, paint, and pack every single order myself.
+              Peach Craft didn't start with a grand plan. It started with two curious questions: how does air-dry clay actually work? And how do I make a fake cake?
             </p>
             <p className="mt-4 text-foreground/80 leading-relaxed">
-              Every piece takes hours — sometimes days — but that's the point. No machines. No mass production. Just slow, soft, joyful little objects made to brighten your shelf.
+              One question led to the next, and before I knew it, I was making things. My friends and family saw something in my work before I even saw it in myself, and that early belief pushed me to keep going. What kept it going after that was the customers. The ones who gave honest feedback so I could improve. The ones who loved what they received. The ones who kept coming back.
+
+            </p>
+            <p className="mt-4 text-foreground/80 leading-relaxed">
+              Then life got full. Work, the ups and downs of everything at once. My hands started to give out. I was taking every order, working without limits, and eventually my hands ached bad enough to scare me. So I stopped. Not quit — stopped. I told myself: this is just a pause.
+            </p>
+            <p className="mt-4 text-foreground/80 leading-relaxed">
+              And here we are. Same curious hands and same love for the craft, just with a little more intention this time. Peach Craft is back, and we're not in a hurry. Just making things, one piece at a time.
             </p>
             <Link to="/shop" className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:-translate-y-0.5 transition-transform">
               See what I'm making <ArrowRight className="w-4 h-4" />
