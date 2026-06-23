@@ -20,7 +20,9 @@ import { Route as CartRouteImport } from './routes/cart'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShopIndexRouteImport } from './routes/shop/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ShopIdRouteImport } from './routes/shop/$id'
 import { Route as AdminWebsiteSettingsRouteImport } from './routes/admin/website-settings'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products/index'
@@ -84,10 +86,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopIndexRoute = ShopIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShopRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const ShopIdRoute = ShopIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ShopRoute,
 } as any)
 const AdminWebsiteSettingsRoute = AdminWebsiteSettingsRouteImport.update({
   id: '/website-settings',
@@ -134,12 +146,14 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/shipping-policy': typeof ShippingPolicyRoute
-  '/shop': typeof ShopRoute
+  '/shop': typeof ShopRouteWithChildren
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/website-settings': typeof AdminWebsiteSettingsRoute
+  '/shop/$id': typeof ShopIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/shop/': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
@@ -154,12 +168,13 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/shipping-policy': typeof ShippingPolicyRoute
-  '/shop': typeof ShopRoute
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/website-settings': typeof AdminWebsiteSettingsRoute
+  '/shop/$id': typeof ShopIdRoute
   '/admin': typeof AdminIndexRoute
+  '/shop': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
@@ -176,12 +191,14 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/shipping-policy': typeof ShippingPolicyRoute
-  '/shop': typeof ShopRoute
+  '/shop': typeof ShopRouteWithChildren
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/website-settings': typeof AdminWebsiteSettingsRoute
+  '/shop/$id': typeof ShopIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/shop/': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
@@ -204,7 +221,9 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/admin/analytics'
     | '/admin/website-settings'
+    | '/shop/$id'
     | '/admin/'
+    | '/shop/'
     | '/admin/orders/$id'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -219,12 +238,13 @@ export interface FileRouteTypes {
     | '/contact'
     | '/login'
     | '/shipping-policy'
-    | '/shop'
     | '/signup'
     | '/verify-email'
     | '/admin/analytics'
     | '/admin/website-settings'
+    | '/shop/$id'
     | '/admin'
+    | '/shop'
     | '/admin/orders/$id'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -245,7 +265,9 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/admin/analytics'
     | '/admin/website-settings'
+    | '/shop/$id'
     | '/admin/'
+    | '/shop/'
     | '/admin/orders/$id'
     | '/admin/products/$id'
     | '/admin/products/new'
@@ -262,7 +284,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   LoginRoute: typeof LoginRoute
   ShippingPolicyRoute: typeof ShippingPolicyRoute
-  ShopRoute: typeof ShopRoute
+  ShopRoute: typeof ShopRouteWithChildren
   SignupRoute: typeof SignupRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
 }
@@ -346,12 +368,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop/': {
+      id: '/shop/'
+      path: '/'
+      fullPath: '/shop/'
+      preLoaderRoute: typeof ShopIndexRouteImport
+      parentRoute: typeof ShopRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/shop/$id': {
+      id: '/shop/$id'
+      path: '/$id'
+      fullPath: '/shop/$id'
+      preLoaderRoute: typeof ShopIdRouteImport
+      parentRoute: typeof ShopRoute
     }
     '/admin/website-settings': {
       id: '/admin/website-settings'
@@ -429,6 +465,18 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ShopRouteChildren {
+  ShopIdRoute: typeof ShopIdRoute
+  ShopIndexRoute: typeof ShopIndexRoute
+}
+
+const ShopRouteChildren: ShopRouteChildren = {
+  ShopIdRoute: ShopIdRoute,
+  ShopIndexRoute: ShopIndexRoute,
+}
+
+const ShopRouteWithChildren = ShopRoute._addFileChildren(ShopRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -438,7 +486,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   LoginRoute: LoginRoute,
   ShippingPolicyRoute: ShippingPolicyRoute,
-  ShopRoute: ShopRoute,
+  ShopRoute: ShopRouteWithChildren,
   SignupRoute: SignupRoute,
   VerifyEmailRoute: VerifyEmailRoute,
 }

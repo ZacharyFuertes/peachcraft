@@ -47,7 +47,10 @@ function writeCartStorage(items: CartItem[]) {
   if (!isBrowser()) return;
 
   window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  window.dispatchEvent(new Event(CART_UPDATED_EVENT));
+  // Dispatch the cart-updated event asynchronously so other components
+  // don't receive it synchronously while React is mid-rendering another
+  // component (which can cause "update during render" warnings).
+  setTimeout(() => window.dispatchEvent(new Event(CART_UPDATED_EVENT)), 0);
 }
 
 export function getCartItems(): CartItem[] {
