@@ -58,19 +58,32 @@ export function SiteFooter() {
           </p>
           <div className="mt-5 flex gap-2">
             {[
-              { Icon: Instagram, label: "Instagram" },
-              { Icon: Music2, label: "TikTok" },
-              { Icon: Mail, label: "Email us" },
-            ].map(({ Icon, label }) => (
-              <a
-                key={label}
-                href="#"
-                aria-label={label}
-                className="grid place-items-center w-11 h-11 rounded-full bg-white/10 hover:bg-blush hover:text-blush-foreground transition-colors"
-              >
-                <Icon className="w-5 h-5" />
-              </a>
-            ))}
+              {
+                Icon: Instagram,
+                label: "Instagram",
+                href: "https://www.instagram.com/_peachcraft?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
+              },
+              {
+                Icon: Music2,
+                label: "TikTok",
+                href: "https://www.tiktok.com/@thepeachywitch?is_from_webapp=1&sender_device=pc",
+              },
+              { Icon: Mail, label: "Email us", href: "#" },
+            ].map(({ Icon, label, href }) => {
+              const external = href?.startsWith("http");
+              return (
+                <a
+                  key={label}
+                  href={href}
+                  target={external ? "_blank" : undefined}
+                  rel={external ? "noopener noreferrer" : undefined}
+                  aria-label={label}
+                  className="grid place-items-center w-11 h-11 rounded-full bg-white/10 hover:bg-blush hover:text-blush-foreground transition-colors"
+                >
+                  <Icon className="w-5 h-5" />
+                </a>
+              );
+            })}
           </div>
         </div>
 
@@ -79,9 +92,6 @@ export function SiteFooter() {
             <h3 className="font-semibold text-background mb-3">Shop</h3>
             <ul className="space-y-2 text-background/75">
               <li><Link to="/shop" className="hover:text-blush">All Crafts</Link></li>
-              <li><Link to="/shop" className="hover:text-blush">Fake Cakes</Link></li>
-              <li><Link to="/shop" className="hover:text-blush">Clay Figures</Link></li>
-              <li><Link to="/shop" className="hover:text-blush">Storage Boxes</Link></li>
             </ul>
           </div>
           <div>
@@ -97,7 +107,6 @@ export function SiteFooter() {
             <ul className="space-y-2 text-background/75">
               <li><Link to="/about" className="hover:text-blush">About</Link></li>
               <li><a href="#" className="hover:text-blush">Process</a></li>
-              <li><a href="#" className="hover:text-blush">Press</a></li>
             </ul>
           </div>
         </div>
