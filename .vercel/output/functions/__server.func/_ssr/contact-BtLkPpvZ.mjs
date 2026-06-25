@@ -1,5 +1,5 @@
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
-import { d as Mail, I as Instagram, c as Music2, g as Send } from "../_libs/lucide-react.mjs";
+import { d as Mail, I as Instagram, c as Music2, i as Send } from "../_libs/lucide-react.mjs";
 function ContactPage() {
   const [sent, setSent] = reactExports.useState(false);
   return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "bg-cream py-16", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-10", children: [

@@ -1,5 +1,5 @@
 import { j as jsxRuntimeExports } from "../_libs/react.mjs";
-import { T as Truck, R as RotateCcw, f as ShieldCheck } from "../_libs/lucide-react.mjs";
+import { f as Truck, R as RotateCcw, g as ShieldCheck } from "../_libs/lucide-react.mjs";
 function PolicyPage() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "bg-cream py-16", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "max-w-4xl mx-auto px-6", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "text-center", children: [
