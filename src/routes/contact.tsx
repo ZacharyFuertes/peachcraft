@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Mail, Instagram, Send, Music2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Mail, Instagram, Send, Music2, Phone } from "lucide-react";
+import { getStoreDetails } from "@/lib/api/storeDetails.functions";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -16,6 +17,29 @@ export const Route = createFileRoute("/contact")({
 
 function ContactPage() {
   const [sent, setSent] = useState(false);
+  const [storeDetails, setStoreDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getStoreDetails();
+        if (mounted) {
+          setStoreDetails(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch store details:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   return (
     <section className="bg-cream py-16">
       <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-10">
@@ -26,9 +50,17 @@ function ContactPage() {
             Custom order? Press inquiry? Just want to chat about clay? I'd love to hear from you. I reply within 1–2 business days.
           </p>
           <ul className="mt-6 space-y-3 text-foreground/80">
-            <li className="flex items-center gap-3"><Mail className="w-5 h-5 text-primary" aria-hidden /> hello@peachcraft.shop</li>
+            <li className="flex items-center gap-3"><Mail className="w-5 h-5 text-primary" aria-hidden /> {storeDetails?.contact_email || "hello@peachcraft.shop"}</li>
             <li className="flex items-center gap-3"><Instagram className="w-5 h-5 text-primary" aria-hidden /> @peach.craft</li>
             <li className="flex items-center gap-3"><Music2 className="w-5 h-5 text-primary" aria-hidden /> @thepeachywitch</li>
+            {storeDetails?.contact_number && (
+              <li className="flex items-center gap-3">
+                <Phone className="w-5 h-5 text-primary" aria-hidden />
+                <a href={`tel:${storeDetails.contact_number}`} className="hover:text-primary transition-colors">
+                  {storeDetails.contact_number}
+                </a>
+              </li>
+            )}
           </ul>
         </div>
 

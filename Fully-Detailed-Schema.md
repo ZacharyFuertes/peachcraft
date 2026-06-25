@@ -320,24 +320,30 @@ The project uses **Supabase (PostgreSQL)** as its database. The schema consists 
 
 **Purpose**: Singleton row storing global store configuration (name, description, logo, social links, etc.).
 
-**Defined in**: No migration SQL found; created manually or in a separate setup step.
+**Status**: Updated with new social media fields (instagram_username, tiktok_username, tiktok_url).
 
 **Columns**:
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | `id` | TEXT | PRIMARY KEY | `"singleton"` |
-| `store_name` | TEXT | nullable | — |
+| `store_name` | TEXT | NOT NULL | — |
 | `store_logo` | TEXT | nullable (URL string) | — |
 | `store_description` | TEXT | nullable | — |
 | `contact_email` | TEXT | nullable | — |
-| `contact_number` | TEXT | nullable | — |
+| `contact_number` | TEXT | NOT NULL | — |
 | `address` | TEXT | nullable | — |
-| `facebook_url` | TEXT | nullable | — |
+| `instagram_username` | TEXT | nullable | — |
 | `instagram_url` | TEXT | nullable | — |
-| `twitter_url` | TEXT | nullable | — |
+| `tiktok_username` | TEXT | nullable | — |
+| `tiktok_url` | TEXT | nullable | — |
 | `footer_text` | TEXT | nullable (copyright text) | — |
 | `hero_banner` | TEXT | nullable (URL string) | — |
+| `updated_at` | TIMESTAMPTZ | — | `now()` |
+
+**Deprecated Columns** (removed):
+- ~~`facebook_url`~~ - No longer used
+- ~~`twitter_url`~~ - No longer used
 
 **RLS Policies**: None defined (accessed server-side with service-role key, admin-only).
 
