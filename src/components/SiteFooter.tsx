@@ -7,56 +7,17 @@ export function SiteFooter() {
   const [done, setDone] = useState(false);
 
   return (
-    <footer className="bg-sage-deep text-background mt-0">
-      {/* Strong newsletter band */}
-      <section className="border-b border-white/10">
-        <div className="max-w-5xl mx-auto px-6 py-14 text-center">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-sm font-medium">
-            <Sparkles className="w-4 h-4" aria-hidden /> New drops every month
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl font-display">
-            Get notified when new crafts drop
-          </h2>
-          <p className="mt-3 text-background/75 max-w-xl mx-auto">
-            Be the first to grab restocks and limited pieces before they sell out.
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (email) setDone(true);
-            }}
-            className="mt-6 flex flex-col sm:flex-row gap-2 max-w-md mx-auto"
-          >
-            <label htmlFor="newsletter" className="sr-only">Email address</label>
-            <input
-              id="newsletter"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@hello.com"
-              className="flex-1 h-12 px-4 rounded-full bg-white/10 border border-white/20 placeholder:text-background/60 text-background focus:outline-none focus:ring-2 focus:ring-blush"
-            />
-            <button
-              type="submit"
-              className="h-12 px-6 rounded-full bg-blush text-blush-foreground font-semibold inline-flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-100 transition-transform shadow-soft"
-            >
-              {done ? "You're in! 🍑" : <>Join <ArrowRight className="w-4 h-4" /></>}
-            </button>
-          </form>
-          <p className="mt-3 text-xs text-background/60">No spam, just shop updates.</p>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-3">
-        <div>
-          <div className="font-display text-2xl">
+    <footer className="bg-sage-deep text-background mt-0 border-t border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 grid gap-12 lg:grid-cols-[1.2fr_1fr_1.2fr]">
+        {/* Column 1: Brand & Socials */}
+        <div className="space-y-6">
+          <div className="font-display text-3xl font-bold tracking-tight">
             <span>Peach</span> <span className="text-blush">Craft</span>
           </div>
-          <p className="mt-3 text-background/75 max-w-xs">
-            Handmade fake cakes, storage boxes &amp; clay crafts — made with love, one piece at a time. 🍑
+          <p className="text-background/80 text-sm max-w-sm leading-relaxed">
+            Handmade fake cakes, storage boxes &amp; clay crafts — made with love, one piece at a time. Crafted to look good and actually be useful. 🍑
           </p>
-          <div className="mt-5 flex gap-2">
+          <div className="flex gap-3">
             {[
               {
                 Icon: Instagram,
@@ -68,7 +29,7 @@ export function SiteFooter() {
                 label: "TikTok",
                 href: "https://www.tiktok.com/@thepeachywitch?is_from_webapp=1&sender_device=pc",
               },
-              { Icon: Mail, label: "Email us", href: "#" },
+              { Icon: Mail, label: "Email us", href: "mailto:hello@peachcraft.shop" },
             ].map(({ Icon, label, href }) => {
               const external = href?.startsWith("http");
               return (
@@ -78,50 +39,86 @@ export function SiteFooter() {
                   target={external ? "_blank" : undefined}
                   rel={external ? "noopener noreferrer" : undefined}
                   aria-label={label}
-                  className="grid place-items-center w-11 h-11 rounded-full bg-white/10 hover:bg-blush hover:text-blush-foreground transition-colors"
+                  className="grid place-items-center w-10 h-10 rounded-full bg-white/10 hover:bg-blush hover:text-blush-foreground transition-all duration-300 btn-bounce-hover"
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-4 h-4" />
                 </a>
               );
             })}
           </div>
         </div>
 
-        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-6 text-sm">
+        {/* Column 2: Link Groups */}
+        <div className="grid grid-cols-2 gap-8 text-sm">
           <div>
-            <h3 className="font-semibold text-background mb-3">Shop</h3>
-            <ul className="space-y-2 text-background/75">
-              <li><Link to="/shop" className="hover:text-blush">All Crafts</Link></li>
+            <h3 className="font-display text-base font-semibold text-background mb-4">Shop</h3>
+            <ul className="space-y-3 text-background/75 font-medium">
+              <li><Link to="/shop" className="hover:text-blush transition-colors">All Crafts</Link></li>
+              <li><Link to="/about" className="hover:text-blush transition-colors">Our Story</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="font-semibold text-background mb-3">Support</h3>
-            <ul className="space-y-2 text-background/75">
-              <li><Link to="/shipping-policy" className="hover:text-blush">Shipping Policy</Link></li>
-              <li><Link to="/shipping-policy" className="hover:text-blush">Refund Policy</Link></li>
-              <li><Link to="/contact" className="hover:text-blush">Contact</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-background mb-3">Studio</h3>
-            <ul className="space-y-2 text-background/75">
-              <li><Link to="/about" className="hover:text-blush">About</Link></li>
-              <li><a href="#" className="hover:text-blush">Process</a></li>
+            <h3 className="font-display text-base font-semibold text-background mb-4">Support</h3>
+            <ul className="space-y-3 text-background/75 font-medium">
+              <li><Link to="/shipping-policy" className="hover:text-blush transition-colors">Shipping Policy</Link></li>
+              <li><Link to="/shipping-policy" className="hover:text-blush transition-colors">Refund Policy</Link></li>
+              <li><Link to="/contact" className="hover:text-blush transition-colors">Contact</Link></li>
             </ul>
           </div>
         </div>
+
+        {/* Column 3: Newsletter Sign-up */}
+        <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6 lg:p-8 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-blush" aria-hidden /> New drops monthly
+          </div>
+          <h3 className="font-display text-2xl text-background">
+            Keep in contact for FRESH crafts!
+          </h3>
+          <p className="text-background/75 text-xs max-w-sm leading-relaxed">
+            Be the first to grab restocks and limited pieces before they sell out.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (email) setDone(true);
+            }}
+            className="flex flex-col gap-2 pt-2"
+          >
+            <label htmlFor="newsletter" className="sr-only">Email address</label>
+            <div className="flex gap-2 bg-white/10 border border-white/20 rounded-full p-1.5 focus-within:ring-2 focus-within:ring-blush">
+              <input
+                id="newsletter"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@hello.com"
+                className="flex-1 bg-transparent px-3 text-sm text-background placeholder:text-background/60 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-full bg-blush text-blush-foreground font-semibold text-xs transition-all btn-bounce-hover shadow-soft whitespace-nowrap"
+              >
+                {done ? "You're in! 🍑" : "Join"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-background/70">
+      {/* Bottom Bar */}
+      <div className="border-t border-white/10 bg-black/5">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-background/65">
           <p>© 2026 Peach Craft. All rights reserved. Made with 🍑 &amp; love.</p>
-          <div className="flex gap-5">
-            <Link to="/shipping-policy" className="hover:text-blush">Shipping Policy</Link>
-            <Link to="/shipping-policy" className="hover:text-blush">Refund Policy</Link>
-            <Link to="/contact" className="hover:text-blush">Contact</Link>
+          <div className="flex gap-6 font-medium">
+            <Link to="/shipping-policy" className="hover:text-blush transition-colors">Shipping Policy</Link>
+            <Link to="/shipping-policy" className="hover:text-blush transition-colors">Refund Policy</Link>
+            <Link to="/contact" className="hover:text-blush transition-colors">Contact</Link>
           </div>
         </div>
       </div>
     </footer>
   );
+
 }

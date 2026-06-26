@@ -33,12 +33,12 @@ function HomePage() {
 
   return (
     <>
-      {/* HERO */}
+      {/* HERO SECTION */}
       <section
-        className="relative overflow-hidden"
+        className="relative overflow-hidden border-b border-border/40"
         style={{ backgroundImage: "var(--gradient-hero)" }}
       >
-        {/* Decorative floating shapes */}
+        {/* Floating circles/decorations */}
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <div className="absolute top-10 left-1/3 w-3 h-3 rounded-full bg-blush animate-float" style={{ animationDelay: "0.5s" }} />
           <div className="absolute top-32 right-1/4 w-2 h-2 rounded-full bg-sage animate-float" style={{ animationDelay: "1.2s" }} />
@@ -46,72 +46,69 @@ function HomePage() {
           <div className="absolute top-20 right-10 text-xl animate-float text-blush" style={{ animationDelay: "2s" }} />
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-12 items-center relative">
-          <div>
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/80 backdrop-blur text-xs font-semibold text-brown shadow-card">
-              <Sparkles className="w-3.5 h-3.5 text-blush" aria-hidden /> New drop · Strawberry Dream Series
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 lg:pt-24 lg:pb-32 grid lg:grid-cols-2 gap-12 items-center relative">
+          <div className="space-y-6">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/85 backdrop-blur text-xs font-bold text-brown shadow-card border border-border/40">
+              <Sparkles className="w-3.5 h-3.5 text-blush animate-wiggle" aria-hidden /> New drop · Strawberry Dream Series
             </span>
-            <h1 className="mt-5 font-display text-5xl sm:text-6xl lg:text-7xl leading-[1.05] text-brown">
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl leading-[1.05] text-brown tracking-tight">
               Your shelf's most interesting story
-              
             </h1>
-            <p className="mt-6 text-lg text-foreground/85 max-w-md leading-relaxed">
-              Welcome to Peach Craft, the home of fake cakes and air-dry clay crafts, each one sculpted by hand with a whole lot of heart.
+            <p className="text-lg text-foreground/85 max-w-md leading-relaxed">
+              Welcome to Peach Craft, the home of handmade fake cakes and kawaii air-dry clay crafts. Sculpted one piece at a time, with a whole lot of heart.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="pt-2 flex flex-wrap gap-4">
               <Link
                 to="/shop"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider btn-bounce-hover shadow-soft"
               >
-                Shop the Collection <span aria-hidden></span>
+                Shop the Collection
               </Link>
               <Link
                 to="/about"
-                className="inline-flex  items-center gap-2 px-7 py-3.5 rounded-full border-2 border-primary text-primary font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-full border-2 border-primary/80 bg-white/40 text-primary font-bold text-xs uppercase tracking-wider btn-bounce-hover shadow-soft"
               >
-                About Me <ArrowRight className="w-4 h-4" />
+                Our Story <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </div>
 
             {/* Trust row */}
-            <dl className="mt-10 grid grid-cols-3 gap-6 max-w-md">
+            <dl className="pt-6 grid grid-cols-3 gap-6 max-w-md border-t border-border/60">
               <div>
-                <dt className="text-xs uppercase tracking-wider text-foreground/60">SINCE</dt>
-                <dd className="mt-1 font-display text-2xl text-brown">2021</dd>
+                <dt className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">SINCE</dt>
+                <dd className="mt-1 font-display text-2xl font-bold text-brown">2021</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wider text-foreground/60">BASED IN</dt>
-                <dd className="mt-1 font-display text-2xl text-brown inline-flex items-center gap-1">
-                  Philippines 
-                </dd>
+                <dt className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">BASED IN</dt>
+                <dd className="mt-1 font-display text-2xl font-bold text-brown">Philippines</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wider text-foreground/60">Made by</dt>
-                <dd className="mt-1 font-display text-2xl text-brown">1 pair of hands</dd>
+                <dt className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">HANDMADE BY</dt>
+                <dd className="mt-1 font-display text-2xl font-bold text-brown">1 Maker</dd>
               </div>
             </dl>
           </div>
 
-          {/* Hero illustration with floating cards */}
+          {/* Hero Illustration */}
           <div className="relative mx-auto w-full max-w-lg">
             <div className="relative aspect-square">
-              <div className="absolute inset-6 rounded-full bg-card/40 backdrop-blur-sm shadow-soft" />
+              <div className="absolute inset-6 rounded-full bg-card/45 backdrop-blur-sm shadow-soft border border-white/20" />
               <CakeIllustration className="relative w-full h-full animate-float" />
             </div>
 
-            {/* Floating mini-cards */}
-            <div className="hidden sm:flex absolute -left-4 top-12 items-center gap-2 px-3 py-2 rounded-2xl bg-card shadow-card animate-float" style={{ animationDelay: "1s" }}>
-              <span className="grid place-items-center w-9 h-9 rounded-xl bg-blush text-lg" aria-hidden />
+            {/* Floating badges */}
+            <div className="hidden sm:flex absolute -left-4 top-12 items-center gap-3 px-4 py-2.5 rounded-2xl bg-card border border-border shadow-card animate-float" style={{ animationDelay: "1s" }}>
+              <span className="grid place-items-center w-8 h-8 rounded-xl bg-blush text-sm text-white font-bold" aria-hidden>🍑</span>
               <div className="text-xs">
-                <p className="font-semibold text-brown">New restock</p>
-                <p className="text-foreground/60">3 pieces left</p>
+                <p className="font-bold text-brown">New Restock</p>
+                <p className="text-foreground/60">Limited quantities</p>
               </div>
             </div>
-            <div className="hidden sm:flex absolute -right-2 bottom-10 items-center gap-2 px-3 py-2 rounded-2xl bg-card shadow-card animate-float" style={{ animationDelay: "2.2s" }}>
+            <div className="hidden sm:flex absolute -right-2 bottom-10 items-center gap-3 px-4 py-2.5 rounded-2xl bg-card border border-border shadow-card animate-float" style={{ animationDelay: "2.2s" }}>
               <Heart className="w-4 h-4 fill-blush text-blush" aria-hidden />
               <div className="text-xs">
-                <p className="font-semibold text-brown">"So adorable!"</p>
+                <p className="font-bold text-brown">"So adorable!"</p>
                 <p className="text-foreground/60">— Mika, verified buyer</p>
               </div>
             </div>
@@ -119,104 +116,160 @@ function HomePage() {
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section className="bg-cream py-20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Why Peach Craft</span>
-            <h2 className="mt-3 font-display text-4xl text-brown">Small studio, big heart</h2>
+      {/* WHY PEACH CRAFT (SUPERPOWERS) */}
+      <section className="bg-cream py-24 border-b border-border/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Why Peach Craft</span>
+            <h2 className="font-display text-4xl sm:text-5xl text-brown">Small studio, big heart</h2>
           </div>
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
+          <div className="mt-16 grid md:grid-cols-3 gap-8">
             {[
               {
                 Icon: HandmadeIllustration,
-                title: "Handmade",
-                desc: "Every piece is crafted by hand with love and care. No two are exactly alike — each one is a tiny original made just for you.",
+                title: "100% Handmade",
+                desc: "Every piece is sculpted by hand with love and care. No molds, no shortcuts. Each one is a tiny original creation made just for you.",
               },
               {
                 Icon: KawaiiIllustration,
-                title: "Pretty useful",
-                desc: "Each piece is made to earn its place: fake cakes that open up for storage, clay crafts that add something to your space. Handmade to look good and actually be useful.",
+                title: "Pretty & Useful",
+                desc: "Each piece is made to earn its place: fake cakes that open up for storage, clay crafts that store jewelry. Designed to look good and be functional.",
               },
               {
                 Icon: PackagingIllustration,
-                title: "Thoughtful Packaging",
-                desc: "Your orders are packed with care using eco-friendly materials. Because we love the planet as much as we love cute crafts.",
+                title: "Eco-friendly Packs",
+                desc: "Your orders are packed with care using sustainable cardboard and starch peanuts that melt in water. Because we care about the planet.",
               },
             ].map(({ Icon, title, desc }) => (
               <div
                 key={title}
-                className="group bg-card rounded-3xl p-8 shadow-card hover:-translate-y-1 hover:shadow-soft transition-all"
+                className="group bg-card border border-border rounded-[2.5rem] p-8 shadow-card hover:-translate-y-2 hover:shadow-soft transition-all duration-300"
               >
-                <div className="w-20 h-20 mb-5 transition-transform group-hover:scale-110 group-hover:rotate-3">
+                <div className="w-20 h-20 mb-6 transition-transform group-hover:scale-110 group-hover:rotate-3 duration-300">
                   <Icon className="w-full h-full" />
                 </div>
-                <h3 className="font-display text-2xl text-brown">{title}</h3>
-                <p className="mt-2 text-foreground/80 leading-relaxed">{desc}</p>
+                <h3 className="font-display text-2xl text-brown font-semibold">{title}</h3>
+                <p className="mt-3 text-foreground/80 leading-relaxed text-sm">{desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* PEAS OF MIND / SPECS SECTION */}
+      <section className="bg-background py-24 border-b border-border/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-3 gap-12 items-start">
+            <div className="lg:sticky lg:top-24 space-y-4">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Aesthetic & Quality</span>
+              <h2 className="font-display text-4xl sm:text-5xl text-brown leading-tight">
+                Peas of mind in every craft
+              </h2>
+              <p className="text-foreground/75 leading-relaxed text-sm">
+                We make sure our handmade creations look delicious but last forever. Here's what makes Peach Craft stand out.
+              </p>
+            </div>
+            <div className="lg:col-span-2 grid sm:grid-cols-2 gap-8">
+              {[
+                {
+                  t: "Premium Air-Dry Clay",
+                  d: "Sculpted with ultra-light, durable clay that hardens into a solid, lightweight piece. No heavy stoneware — safe to display anywhere."
+                },
+                {
+                  t: "Aqueous Acrylic Coating",
+                  d: "Every creation is hand-painted with multiple layers of pastel acrylics and finished with a protective water-resistant seal."
+                },
+                {
+                  t: "Secret Storage Spaces",
+                  d: "Many of our fake cakes open up! A beautiful topping hides a storage box for your rings, keys, and desk clutter."
+                },
+                {
+                  t: "Thoughtful Materials",
+                  d: "Using non-toxic clays, recycled paper pulps, and premium seals. We design safe and high quality decorations for your home."
+                }
+              ].map((spec) => (
+                <div key={spec.t} className="border-b border-border/80 pb-6">
+                  <h3 className="font-display text-lg text-brown font-bold mb-2">{spec.t}</h3>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{spec.d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FEATURED PRODUCTS */}
-      <section className="bg-accent py-20">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="font-display text-4xl text-brown">
+      <section className="bg-accent py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-3">
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">The Studio Favorites</span>
+            <h2 className="font-display text-4xl sm:text-5xl text-brown">
               Featured Crafts
             </h2>
-            <p className="mt-3 text-foreground/75">
-              A few of our most beloved creations — restocks coming soon!
+            <p className="text-foreground/75 text-sm max-w-md mx-auto">
+              A few of our most beloved creations. Sign up for alerts so you never miss a drop!
             </p>
           </div>
 
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-8">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-80 rounded-3xl bg-[var(--card)] shadow-soft" />
+                <div key={index} className="h-80 rounded-[2rem] bg-[var(--card)] shadow-soft animate-pulse" />
               ))
             ) : error ? (
-              <div className="rounded-3xl bg-[var(--card)] p-6 text-sm text-[#f87171] shadow-soft">{error instanceof Error ? error.message : "Unable to load featured products."}</div>
+              <div className="rounded-[2rem] bg-[var(--card)] p-6 text-sm text-red-400 shadow-soft col-span-full">
+                {error instanceof Error ? error.message : "Unable to load featured products."}
+              </div>
             ) : (
-              (products ?? []).map((product) => (
+              (products ?? []).slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))
             )}
           </div>
 
-          <div className="mt-12 text-center">
+          <div className="mt-16 text-center">
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-blush text-blush-foreground font-semibold shadow-soft hover:scale-105 transition-transform"
+              className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-blush text-blush-foreground font-bold text-xs uppercase tracking-wider btn-bounce-hover shadow-soft"
             >
-              View All Crafts <ArrowRight className="w-4 h-4" />
+              View All Crafts <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </div>
-          {/* compilation image moved outside container to be full-bleed */}
         </div>
-        <div className="w-full mt-6">
+
+        {/* compilation image moved outside container to be full-bleed */}
+        <div className="w-full mt-16 overflow-hidden">
           <img
             src="/assets/COMPILATIONPIC.png"
             alt="Compilation of customer photos and stories"
             loading="lazy"
-            className="block w-full h-auto object-cover shadow-soft rounded-none"
+            className="block w-full h-auto object-cover opacity-95"
           />
         </div>
       </section>
 
-      {/* EMOTIONAL CTA STRIP — now actionable */}
-      <section className="bg-blush text-blush-foreground py-12">
-        <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_auto] items-center gap-6">
-          <p className="font-display italic text-2xl sm:text-3xl text-center lg:text-left">
-            A few pieces are still available.
-          </p>
-          <Link
-            to="/shop"
-            className="justify-self-center inline-flex items-center gap-2 px-6 py-3 rounded-full bg-blush-foreground text-blush font-semibold hover:scale-105 transition-transform"
-          >
-            Shop <ArrowRight className="w-4 h-4" />
-          </Link>
+      {/* FINAL CALL TO ACTION CARD */}
+      <section className="bg-background py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-blush text-blush-foreground rounded-[2.5rem] p-8 sm:p-12 lg:p-16 shadow-soft grid lg:grid-cols-[1.2fr_1fr] gap-8 items-center relative overflow-hidden">
+            <div className="absolute inset-0 marquee-strip pointer-events-none opacity-20" aria-hidden />
+            <div className="relative z-10 space-y-4">
+              <h2 className="font-display text-4xl sm:text-5xl leading-tight">
+                A few unique crafts are still available.
+              </h2>
+              <p className="text-blush-foreground/90 max-w-md text-sm leading-relaxed">
+                Each piece is a singular creation. Visit our shop to find the perfect cupcake container or clay companion.
+              </p>
+            </div>
+            <div className="relative z-10 flex justify-start lg:justify-end">
+              <Link
+                to="/shop"
+                className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-blush-foreground text-blush font-bold text-xs uppercase tracking-wider btn-bounce-hover shadow-soft"
+              >
+                Shop the Drop <ArrowRight className="w-4 h-4 ml-2 animate-wiggle" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </>

@@ -120,7 +120,7 @@ function CheckoutPage() {
   if (checkingAuth) {
     return (
       <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft flex flex-col items-center justify-center min-h-[300px]">
             <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
             <p className="text-foreground/75 font-medium">Verifying your account status...</p>
@@ -133,7 +133,7 @@ function CheckoutPage() {
   if (authError) {
     return (
       <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-4">
             <div className="rounded-3xl bg-[#fee2e2] p-4 text-sm text-[#b91c1c]">{authError}</div>
             <button
@@ -152,7 +152,7 @@ function CheckoutPage() {
   if (!isAuthenticated) {
     return (
       <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fee2e2] text-[#ef4444]">
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -193,7 +193,7 @@ function CheckoutPage() {
   if (!isVerified) {
     return (
       <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fef3c7] text-[#d97706]">
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -227,7 +227,7 @@ function CheckoutPage() {
   if (hasActiveOrder) {
     return (
       <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fee2e2] text-[#ef4444]">
               <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -321,7 +321,7 @@ function CheckoutPage() {
 
   return (
     <section className="bg-cream py-16">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
           <div className="space-y-6 rounded-3xl bg-[var(--card)] p-8 shadow-soft">
             <div>

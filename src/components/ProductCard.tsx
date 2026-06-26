@@ -62,29 +62,41 @@ export function ProductCard({ product }: { product: Product }) {
     <article
       onClick={() => navigate({ to: `/shop/${product.id}` })}
       className={cn(
-        "group relative rounded-3xl overflow-hidden shadow-card bg-white transition-all duration-300 hover:-translate-y-1.5 hover:shadow-soft focus-within:-translate-y-1.5 cursor-pointer",
+        "group relative cursor-pointer",
+        // Mobile: borderless flat card; Desktop: elevated with rounded corners
+        "rounded-[1rem] sm:rounded-[1.75rem] border border-border/70 overflow-hidden",
+        "bg-white transition-all duration-300",
+        "hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-card sm:hover:shadow-soft",
+        "shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] sm:shadow-card",
       )}
     >
-      <div className="relative overflow-hidden rounded-t-3xl">
+      {/* ─── Image area ──────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-cream rounded-t-[1rem] sm:rounded-t-[1.75rem]">
         {imageSrc ? (
-          <div className="w-full h-[24rem] sm:h-[22rem] md:h-[20rem] lg:h-[18rem] overflow-hidden">
+          <div className="w-full aspect-[1/1] sm:aspect-[4/5] overflow-hidden bg-cream">
             <img
               src={imageSrc}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
             />
           </div>
-        ) : null}
+        ) : (
+          <div className="w-full aspect-square bg-cream flex items-center justify-center">
+            <span className="text-foreground/20 text-4xl">🎂</span>
+          </div>
+        )}
 
-        <div className="absolute left-4 bottom-4 flex flex-col gap-2">
-          {product.soldOut && (
-            <span className="px-3 py-1 rounded-md bg-foreground text-background text-xs font-semibold shadow-card">
+        {/* Sold out badge */}
+        {product.soldOut && (
+          <div className="absolute left-2.5 bottom-2.5 sm:left-3 sm:bottom-3">
+            <span className="px-2 py-0.5 rounded-md bg-foreground/90 backdrop-blur text-[9px] font-bold uppercase tracking-wider text-background shadow-card select-none">
               Sold out
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
+        {/* Wishlist heart */}
         <button
           type="button"
           onClick={(e) => {
@@ -93,38 +105,46 @@ export function ProductCard({ product }: { product: Product }) {
           }}
           aria-label={liked ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={liked}
-          className="absolute right-4 top-4 grid place-items-center w-9 h-9 rounded-full bg-card/90 backdrop-blur shadow-card hover:scale-110 transition-transform"
+          className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 grid place-items-center w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-card hover:scale-110 active:scale-95 transition-transform"
         >
-          <Heart className={cn("w-4 h-4 transition-colors", liked ? "fill-blush text-blush" : "text-foreground")} />
+          <Heart className={cn("w-3.5 h-3.5 transition-colors", liked ? "fill-blush text-blush" : "text-foreground/70")} />
         </button>
       </div>
 
-      <div className="p-5 bg-white rounded-b-3xl">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display text-base text-brown leading-tight">
-            {product.name} {product.tag ? <span className="text-sm text-muted-foreground font-normal">({product.tag})</span> : null}
-          </h3>
-          <p className="text-sm text-primary font-semibold">₱{product.price.toLocaleString()}</p>
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <p className="text-xs text-foreground/70">{product.soldOut ? 'Unavailable' : product.category ?? ''}</p>
+      {/* ─── Info area ───────────────────────────────────────────────── */}
+      <div className="p-3 sm:p-5 space-y-0.5 sm:space-y-1">
+        {/* Name */}
+        <h3 className="font-sans text-[13px] sm:text-sm font-semibold text-foreground leading-snug line-clamp-2">
+          {product.name}{product.tag ? ` (${product.tag})` : ''}
+        </h3>
+
+        {/* Price */}
+        <p className="text-[12px] sm:text-sm text-foreground/80 font-medium">
+          ₱{product.price.toLocaleString("en-PH")} PHP
+        </p>
+
+        {/* Desktop-only: Add to cart row */}
+        <div className="hidden sm:flex pt-2.5 mt-1 border-t border-border/50 items-center justify-between gap-2">
+          <p className="text-[11px] text-foreground/45 font-medium truncate">
+            {product.soldOut ? 'Unavailable' : product.category ?? 'Handmade'}
+          </p>
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={isOutOfStock}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition",
+              "shrink-0 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all btn-bounce-hover shadow-sm",
               isOutOfStock
-                ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                 : "bg-foreground text-background hover:bg-foreground/90",
             )}
           >
             {added ? (
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-3 h-3" />
             ) : (
-              <ShoppingBag className="w-3.5 h-3.5" />
+              <ShoppingBag className="w-3 h-3" />
             )}
-            {product.soldOut ? 'Sold out' : added ? 'Added!' : 'Add to cart'}
+            {product.soldOut ? 'Sold out' : added ? 'Added!' : 'Add'}
           </button>
         </div>
       </div>

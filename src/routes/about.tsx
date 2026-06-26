@@ -17,47 +17,68 @@ export const Route = createFileRoute("/about")({
 function AboutPage() {
   return (
     <>
-      <section className="py-16 lg:py-24" style={{ backgroundImage: "var(--gradient-hero)" }}>
-        <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">About</span>
-            <h1 className="mt-3 font-display text-5xl lg:text-6xl text-brown leading-tight">
-              Hi, I'm the hands behind <em className="text-primary not-italic italic">Peach Craft</em>
-            </h1>
-            <p className="mt-5 text-lg text-foreground/85 leading-relaxed">
-              Peach Craft didn't start with a grand plan. It started with two curious questions: how does air-dry clay actually work? And how do I make a fake cake?
+      {/* Centered Hero Section */}
+      <section className="py-20 lg:py-28" style={{ backgroundImage: "var(--gradient-hero)" }}>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-8">
+          <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">About Peach Craft</span>
+          <h1 className="font-display text-5xl sm:text-6xl text-brown font-bold tracking-tight leading-tight">
+            Hi, I'm the hands behind <em className="text-primary not-italic italic font-display">Peach Craft</em>
+          </h1>
+          
+          <div className="text-foreground/85 text-base sm:text-lg leading-relaxed space-y-6 max-w-2xl mx-auto">
+            <p>
+              Peach Craft didn't start with a grand business plan. It started with simple curiosity: how does air-dry clay actually work? And how do I make a realistic fake cake?
             </p>
-            <p className="mt-4 text-foreground/80 leading-relaxed">
-              One question led to the next, and before I knew it, I was making things. My friends and family saw something in my work before I even saw it in myself, and that early belief pushed me to keep going. What kept it going after that was the customers. The ones who gave honest feedback so I could improve. The ones who loved what they received. The ones who kept coming back.
+            <p>
+              One question led to the next, and before I knew it, I was making all sorts of things at my kitchen table. My friends saw something in my early crafts before I did, and that push kept me going. What really sustained me, though, was my customers—the ones who gave feedback, shared pictures of their shelves, and came back for every drop.
+            </p>
+            <p>
+              Eventually, life got incredibly full. Between work, commissions, and standard packaging, I was pushing my limits, and my hands started to ache. So I stopped. Not quit—just paused. I told myself to take a breath and craft with intention.
+            </p>
+            <p>
+              And now, Peach Craft is back. Same curious hands, same dedication to the clay process, but moving a little slower this time. Just making things, one piece at a time, with absolute love.
+            </p>
+          </div>
 
-            </p>
-            <p className="mt-4 text-foreground/80 leading-relaxed">
-              Then life got full. Work, the ups and downs of everything at once. My hands started to give out. I was taking every order, working without limits, and eventually my hands ached bad enough to scare me. So I stopped. Not quit — stopped. I told myself: this is just a pause.
-            </p>
-            <p className="mt-4 text-foreground/80 leading-relaxed">
-              And here we are. Same curious hands and same love for the craft, just with a little more intention this time. Peach Craft is back, and we're not in a hurry. Just making things, one piece at a time.
-            </p>
-            <Link to="/shop" className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold shadow-soft hover:-translate-y-0.5 transition-transform">
-              See what I'm making <ArrowRight className="w-4 h-4" />
+          <div className="pt-4 flex justify-center">
+            <Link
+              to="/shop"
+              className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider btn-bounce-hover shadow-soft"
+            >
+              See what I'm making <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </div>
-          <CakeIllustration className="w-full max-w-md mx-auto animate-float" />
         </div>
       </section>
 
-      <section className="bg-cream py-20">
-        <div className="max-w-5xl mx-auto px-6 grid md:grid-cols-3 gap-6">
-          {[
-            { k: "01", t: "Sketch", d: "Every craft starts as a doodle in my notebook." },
-            { k: "02", t: "Sculpt", d: "Hand-shaped from air-dry clay — no molds." },
-            { k: "03", t: "Paint & pack", d: "Sealed, painted, and packed in eco-friendly boxes." },
-          ].map((s) => (
-            <div key={s.k} className="bg-card rounded-3xl p-8 shadow-card">
-              <div className="font-display text-3xl text-blush">{s.k}</div>
-              <h3 className="mt-3 font-display text-2xl text-brown">{s.t}</h3>
-              <p className="mt-2 text-foreground/80">{s.d}</p>
-            </div>
-          ))}
+      {/* Centered Illustration Section */}
+      <section className="py-12 bg-background border-t border-b border-border/40">
+        <div className="max-w-md mx-auto px-6">
+          <CakeIllustration className="w-full h-auto animate-float mx-auto" />
+        </div>
+      </section>
+
+      {/* Method Grid */}
+      <section className="bg-cream py-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-16">
+          <div className="text-center space-y-3">
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">The Process</span>
+            <h2 className="font-display text-4xl text-brown font-bold tracking-tight">How it gets made</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { k: "01", t: "Notebook Doodles", d: "Every single craft begins as a quick watercolor sketch or pencil doodle in my ideas book." },
+              { k: "02", t: "Hand Sculpting", d: "Air-dry clay is hand-shaped and custom blended without using synthetic molds. No two items are identical!" },
+              { k: "03", t: "Seal & Package", d: "Each piece is hand-painted, waterproof sealed, and packaged in recycled cardboard with water-soluble peanuts." },
+            ].map((s) => (
+              <div key={s.k} className="bg-card border border-border/80 rounded-[2.5rem] p-8 shadow-card hover:-translate-y-1.5 hover:shadow-soft transition-all duration-300">
+                <div className="font-display text-3xl font-bold text-blush">{s.k}</div>
+                <h3 className="mt-4 font-display text-xl text-brown font-bold">{s.t}</h3>
+                <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{s.d}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </>

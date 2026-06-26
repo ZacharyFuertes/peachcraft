@@ -42,7 +42,7 @@ function ContactPage() {
   }, []);
   return (
     <section className="bg-cream py-16">
-      <div className="max-w-5xl mx-auto px-6 grid lg:grid-cols-[1fr_1.2fr] gap-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 grid lg:grid-cols-[1fr_1.2fr] gap-10">
         <div>
           <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Contact</span>
           <h1 className="mt-3 font-display text-5xl text-brown">Say hi</h1>

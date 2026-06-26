@@ -147,21 +147,31 @@ const __iconNode$d = [
 ];
 const Package = createLucideIcon("package", __iconNode$d);
 const __iconNode$c = [
+  [
+    "path",
+    {
+      d: "M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384",
+      key: "9njp5v"
+    }
+  ]
+];
+const Phone = createLucideIcon("phone", __iconNode$c);
+const __iconNode$b = [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "M12 5v14", key: "s699le" }]
 ];
-const Plus = createLucideIcon("plus", __iconNode$c);
-const __iconNode$b = [
+const Plus = createLucideIcon("plus", __iconNode$b);
+const __iconNode$a = [
   ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "1357e3" }],
   ["path", { d: "M3 3v5h5", key: "1xhq8a" }]
 ];
-const RotateCcw = createLucideIcon("rotate-ccw", __iconNode$b);
-const __iconNode$a = [
+const RotateCcw = createLucideIcon("rotate-ccw", __iconNode$a);
+const __iconNode$9 = [
   ["path", { d: "m21 21-4.34-4.34", key: "14j7rj" }],
   ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }]
 ];
-const Search = createLucideIcon("search", __iconNode$a);
-const __iconNode$9 = [
+const Search = createLucideIcon("search", __iconNode$9);
+const __iconNode$8 = [
   [
     "path",
     {
@@ -171,16 +181,16 @@ const __iconNode$9 = [
   ],
   ["path", { d: "m21.854 2.147-10.94 10.939", key: "12cjpa" }]
 ];
-const Send = createLucideIcon("send", __iconNode$9);
-const __iconNode$8 = [
+const Send = createLucideIcon("send", __iconNode$8);
+const __iconNode$7 = [
   ["circle", { cx: "18", cy: "5", r: "3", key: "gq8acd" }],
   ["circle", { cx: "6", cy: "12", r: "3", key: "w7nqdw" }],
   ["circle", { cx: "18", cy: "19", r: "3", key: "1xt0gg" }],
   ["line", { x1: "8.59", x2: "15.42", y1: "13.51", y2: "17.49", key: "47mynk" }],
   ["line", { x1: "15.41", x2: "8.59", y1: "6.51", y2: "10.49", key: "1n3mei" }]
 ];
-const Share2 = createLucideIcon("share-2", __iconNode$8);
-const __iconNode$7 = [
+const Share2 = createLucideIcon("share-2", __iconNode$7);
+const __iconNode$6 = [
   [
     "path",
     {
@@ -190,17 +200,7 @@ const __iconNode$7 = [
   ],
   ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
 ];
-const ShieldCheck = createLucideIcon("shield-check", __iconNode$7);
-const __iconNode$6 = [
-  [
-    "path",
-    {
-      d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
-      key: "oel41y"
-    }
-  ]
-];
-const Shield = createLucideIcon("shield", __iconNode$6);
+const ShieldCheck = createLucideIcon("shield-check", __iconNode$6);
 const __iconNode$5 = [
   ["path", { d: "M16 10a4 4 0 0 1-8 0", key: "1ltviw" }],
   ["path", { d: "M3.103 6.034h17.794", key: "awc11p" }],
@@ -276,20 +276,20 @@ export {
   Tag as T,
   X,
   ShoppingBag as a,
-  Sparkles as b,
-  Music2 as c,
-  Mail as d,
+  Music2 as b,
+  Mail as c,
+  Sparkles as d,
   Check as e,
   Truck as f,
   ShieldCheck as g,
   ArrowLeft as h,
-  Send as i,
-  ChevronDown as j,
-  ChevronUp as k,
-  Trash2 as l,
-  ChevronLeft as m,
-  Minus as n,
-  Plus as o,
-  Shield as p,
+  Phone as i,
+  Send as j,
+  ChevronDown as k,
+  ChevronUp as l,
+  Trash2 as m,
+  ChevronLeft as n,
+  Minus as o,
+  Plus as p,
   Share2 as q
 };

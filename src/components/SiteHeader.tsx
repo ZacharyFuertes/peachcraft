@@ -10,11 +10,9 @@ import { getAutocompleteSuggestions } from "@/lib/api/search.functions";
 import type { AutocompleteSuggestions } from "@/lib/api/search.functions";
 
 const nav = [
-  { to: "/", label: "Home" },
   { to: "/shop", label: "Shop" },
-  { to: "/about", label: "About" },
-  { to: "/shipping-policy", label: "Shipping & Policy" },
-  { to: "/contact", label: "Contact" },
+  { to: "/about", label: "Our Story" },
+  { to: "/shipping-policy", label: "FAQ" },
 ] as const;
 
 /** Highlights the query string inside text using a styled <mark> span. */
@@ -236,10 +234,10 @@ export function SiteHeader() {
 
       <header
         className={cn(
-          "sticky top-0 z-50 transition-all duration-300 backdrop-blur-md",
+          "sticky top-0 z-50 transition-all duration-300 backdrop-blur-md border-b",
           scrolled
-            ? "bg-background/85 border-b border-border shadow-soft"
-            : "bg-background/60",
+            ? "bg-background/90 border-border/80 shadow-soft py-2"
+            : "bg-background/70 border-transparent py-4",
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -284,72 +282,63 @@ export function SiteHeader() {
             </div>
           ) : (
             /* ── NORMAL MODE ── */
-            <div className="flex items-center justify-between h-16 lg:h-20">
-              <Link to="/" className="flex items-center gap-3 group" aria-label="Peach Craft home">
+            <div className="flex items-center justify-between h-14 lg:h-16">
+              <Link to="/" className="flex items-center gap-3 group btn-bounce-hover" aria-label="Peach Craft home">
                 <img
                   src={logoUrl}
                   alt="Peach Craft logo"
-                  className="w-10 h-10 object-contain"
+                  className="w-10 h-10 object-contain transition-transform group-hover:rotate-12 duration-300"
                 />
                 <span className="font-display text-2xl">
                   <span className="text-brown">Peach</span>{" "}
-                  <span className="text-primary">Craft</span>
+                  <span className="text-primary font-bold">Craft</span>
                 </span>
               </Link>
 
-              <nav aria-label="Primary" className="hidden lg:flex items-center gap-1">
+              <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/40 backdrop-blur-md border border-border px-1 py-1 rounded-full shadow-soft">
                 {nav.map((item) => {
-                  const active =
-                    item.to === "/"
-                      ? location.pathname === "/"
-                      : location.pathname.startsWith(item.to);
+                  const active = location.pathname.startsWith(item.to);
                   return (
                     <Link
                       key={item.to}
                       to={item.to}
                       className={cn(
-                        "relative px-4 py-2 text-sm font-medium rounded-full transition-colors",
-                        "hover:text-primary",
-                        active ? "text-primary" : "text-foreground/80",
+                        "relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 btn-bounce-hover",
+                        active
+                          ? "bg-primary text-primary-foreground shadow-soft"
+                          : "text-foreground/80 hover:text-primary hover:bg-accent/40",
                       )}
                     >
                       {item.label}
-                      <span
-                        className={cn(
-                          "absolute left-3 right-3 -bottom-0.5 h-0.5 rounded-full bg-primary origin-left transition-transform duration-300",
-                          active ? "scale-x-100" : "scale-x-0",
-                        )}
-                        aria-hidden
-                      />
                     </Link>
                   );
                 })}
               </nav>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 {/* Search button */}
                 <button
                   type="button"
                   aria-label="Search"
                   onClick={openSearch}
-                  className="grid place-items-center w-11 h-11 rounded-full hover:bg-accent transition-colors"
+                  className="grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 transition-colors btn-bounce-hover shrink-0"
                 >
-                  <Search className="w-5 h-5" />
+                  <Search className="w-4 h-4 text-foreground" />
                 </button>
 
                 {/* Cart */}
                 <Link
                   to="/cart"
                   aria-label={`Cart, ${itemCount} items`}
-                  className="grid place-items-center w-11 h-11 rounded-full hover:bg-accent transition-colors relative"
+                  className="grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 transition-colors relative btn-bounce-hover shrink-0"
                 >
                   <ShoppingBag
                     className={cn(
-                      "w-5 h-5 transition-transform",
+                      "w-4 h-4 transition-transform text-foreground",
                       cartBouncing && "animate-cart-bounce",
                     )}
                   />
-                  <span className="absolute top-1.5 right-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-semibold text-white">
+                  <span className="absolute -top-1 -right-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-bold text-white px-1 shadow-soft">
                     {itemCount}
                   </span>
                 </Link>
@@ -359,14 +348,14 @@ export function SiteHeader() {
                   <div className="hidden lg:flex items-center gap-2 ml-1">
                     <div
                       title={userEmail ?? ""}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft select-none"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft select-none border border-border"
                     >
                       {initial}
                     </div>
                     <button
                       type="button"
                       onClick={handleSignOut}
-                      className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-foreground/80 hover:bg-accent transition-colors"
+                      className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-border bg-white/40 rounded-full text-xs font-semibold text-foreground hover:bg-accent/40 hover:text-primary transition-colors btn-bounce-hover"
                     >
                       Sign out
                     </button>
@@ -375,9 +364,9 @@ export function SiteHeader() {
                   <Link
                     to="/login"
                     id="header-sign-in-btn"
-                    className="hidden lg:inline-flex items-center gap-2 ml-1 px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                    className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-all btn-bounce-hover shadow-soft"
                   >
-                    <UserCircle2 className="w-4 h-4" aria-hidden />
+                    <UserCircle2 className="w-3.5 h-3.5 mr-1" aria-hidden />
                     Sign In
                   </Link>
                 )}
@@ -388,9 +377,9 @@ export function SiteHeader() {
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                   aria-expanded={mobileOpen}
                   onClick={() => setMobileOpen((v) => !v)}
-                  className="lg:hidden grid place-items-center w-11 h-11 rounded-full hover:bg-accent"
+                  className="lg:hidden grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 btn-bounce-hover"
                 >
-                  {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                  {mobileOpen ? <X className="w-4 h-4 text-foreground" /> : <Menu className="w-4 h-4 text-foreground" />}
                 </button>
               </div>
             </div>
@@ -401,32 +390,32 @@ export function SiteHeader() {
         {mobileOpen && !searchOpen && (
           <nav
             aria-label="Mobile"
-            className="lg:hidden border-t border-border bg-background/95 backdrop-blur animate-fade-in"
+            className="lg:hidden border-b border-border bg-background/95 backdrop-blur-md animate-fade-in rounded-b-[2rem] shadow-soft overflow-hidden"
           >
-            <ul className="px-4 py-2">
+            <ul className="px-6 py-6 space-y-2">
               {nav.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className="block px-3 py-3 rounded-lg text-base font-medium hover:bg-accent"
+                    className="block px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent text-foreground transition-all"
                   >
                     {item.label}
                   </Link>
                 </li>
               ))}
-              <li className="pt-1 pb-2">
+              <li className="pt-2 border-t border-border mt-4">
                 {isLoggedIn ? (
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="w-full text-left px-3 py-3 rounded-lg text-base font-medium hover:bg-accent text-foreground/80"
+                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent text-foreground/80 transition-all"
                   >
                     Sign out
                   </button>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center gap-2 px-3 py-3 rounded-lg text-base font-semibold text-primary hover:bg-accent"
+                    className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-bold text-primary hover:bg-accent transition-all"
                   >
                     <UserCircle2 className="w-5 h-5" aria-hidden />
                     Sign In

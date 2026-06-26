@@ -6,19 +6,22 @@ import {
   ShoppingBag,
   Check,
   ChevronLeft,
+  ChevronRight,
   ChevronDown,
-  ChevronUp,
   Minus,
   Plus,
-  Share2,
-  Truck,
   Package,
-  Shield,
+  Ruler,
+  Clipboard,
+  RotateCcw,
+  Upload,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart";
 import { useCartToast } from "@/components/CartToast";
-import { getProductById } from "@/lib/api/supabase.functions";
+import { getProductById, getAllProducts } from "@/lib/api/supabase.functions";
+import { ProductCard } from "@/components/ProductCard";
 
 export const Route = createFileRoute("/shop/$id")({
   head: () => ({
@@ -46,17 +49,25 @@ function ProductDetailPage() {
     queryFn: () => getProductById({ data: { id } }),
   });
 
+  const { data: allProducts } = useQuery({
+    queryKey: ["all-products"],
+    queryFn: getAllProducts,
+  });
+
   const [liked, setLiked] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [added, setAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openAccordion, setOpenAccordion] = useState<string | null>("materials");
   const { items, addItem } = useCart();
   const { notify } = useCartToast();
 
+  const relatedProducts = (allProducts ?? [])
+    .filter((p) => p.id !== product?.id)
+    .slice(0, 4);
+
   const handleAddToCart = () => {
     if (!product) return;
-
     try {
       addItem(product, quantity);
       notify({
@@ -78,9 +89,12 @@ function ProductDetailPage() {
   const existingCartItem = items.find(
     (item) => item.product_id === product?.id,
   );
+  // Derive soldOut from DB fields (is_active=false OR stock_qty<=0)
+  const isSoldOut =
+    product?.is_active === false ||
+    (product?.stock_qty != null && product.stock_qty <= 0);
   const isOutOfStock =
-    product?.soldOut ||
-    (product?.stock_qty != null && product.stock_qty <= 0) ||
+    isSoldOut ||
     (product?.stock_qty != null &&
       existingCartItem &&
       existingCartItem.qty >= product.stock_qty);
@@ -89,9 +103,36 @@ function ProductDetailPage() {
   const canIncrement = quantity < maxQty;
   const canDecrement = quantity > 1;
 
-  const toggleSection = (section: string) => {
-    setOpenSection(openSection === section ? null : section);
+  const toggleAccordion = (key: string) => {
+    setOpenAccordion((prev) => (prev === key ? null : key));
   };
+
+  const accordions = [
+    {
+      key: "materials",
+      icon: <HelpCircle className="w-5 h-5 text-foreground/60 shrink-0" />,
+      title: "Materials",
+      content: "Our crafts are shaped by hand with high-quality, lightweight air-dry clay, colored with custom-mixed pastels, and sealed with multiple layers of durable protective varnish (in matte or semi-gloss finish). Every single piece is a unique original creation.",
+    },
+    {
+      key: "dimensions",
+      icon: <Ruler className="w-5 h-5 text-foreground/60 shrink-0" />,
+      title: "Dimensions",
+      content: "Each fake cake container is approximately 12cm in diameter and 15cm in height. Due to the hand-sculpted nature, please allow minor variations of 1–2cm in sizes.",
+    },
+    {
+      key: "care",
+      icon: <Clipboard className="w-5 h-5 text-foreground/60 shrink-0" />,
+      title: "Care Instructions",
+      content: "Clay crafts are fragile and decorative only (not waterproof or food-safe). Protect your pieces from moisture, water, extreme heat, and direct sunlight. To clean, wipe gently with a dry, soft paint brush or soft cloth.",
+    },
+    {
+      key: "returns",
+      icon: <RotateCcw className="w-5 h-5 text-foreground/60 shrink-0" />,
+      title: "Return Policy",
+      content: "Standard orders ship from Manila within 1–3 business days. Free shipping is automatically applied to orders ₱1,000 and above! Refunds are eligible on unopened items within 7 days of package delivery. If an item arrives broken, contact us with photos within 48 hours for a replacement.",
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -124,24 +165,28 @@ function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Breadcrumb / back bar */}
+      {/* ── Breadcrumb / back bar ──────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
         <button
           onClick={() => navigate({ to: "/shop" })}
-          className="inline-flex items-center gap-1.5 text-sm text-foreground/60 hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-foreground/50 hover:text-primary transition-colors btn-bounce-hover"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Back to shop</span>
         </button>
       </div>
 
-      {/* Main product section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-14">
+      {/* ── Main product section ───────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-20 items-start">
+
           {/* ═══════════ LEFT: Image Gallery ═══════════ */}
           <div className="space-y-4">
-            {/* Hero image */}
-            <div className="relative aspect-square overflow-hidden rounded-2xl bg-cream">
+            {/* Hero image — full-width on mobile, rounded on desktop */}
+            <div className="relative w-full overflow-hidden bg-cream
+              aspect-[4/3] sm:aspect-square
+              rounded-none sm:rounded-[2.5rem]
+              border-0 sm:border sm:border-border/80">
               {selectedImage ? (
                 <img
                   src={selectedImage}
@@ -154,47 +199,68 @@ function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Wishlist button overlay */}
+              {/* Wishlist button */}
               <button
                 type="button"
                 onClick={() => setLiked((v) => !v)}
-                aria-label={
-                  liked ? "Remove from wishlist" : "Add to wishlist"
-                }
-                className="absolute right-4 top-4 grid place-items-center w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-card hover:scale-110 transition-all"
+                aria-label={liked ? "Remove from wishlist" : "Add to wishlist"}
+                className="absolute right-4 top-4 sm:right-6 sm:top-6 grid place-items-center w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-card hover:scale-110 active:scale-95 transition-all"
               >
                 <Heart
                   className={cn(
                     "w-5 h-5 transition-colors",
-                    liked
-                      ? "fill-blush text-blush"
-                      : "text-foreground/60",
+                    liked ? "fill-blush text-blush" : "text-foreground",
                   )}
                 />
               </button>
 
-              {/* Sold out overlay badge */}
-              {product.soldOut && (
-                <div className="absolute left-4 bottom-4">
-                  <span className="px-4 py-1.5 rounded-full bg-foreground text-background text-xs font-bold uppercase tracking-wider">
+              {/* Sold out badge */}
+              {isSoldOut && (
+                <div className="absolute left-4 bottom-4 sm:left-6 sm:bottom-6">
+                  <span className="px-4 py-2 rounded-xl bg-foreground text-background text-[10px] font-bold uppercase tracking-wider shadow-card select-none">
                     Sold out
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Thumbnail grid */}
+            {/* Image counter slider — shown when multiple images */}
             {images.length > 1 && (
-              <div className="grid grid-cols-4 gap-3">
-                {images.map((src, index) => (
+              <div className="flex items-center justify-center gap-6 text-sm font-semibold text-foreground/75 select-none px-4 sm:px-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
+                  aria-label="Previous image"
+                  className="p-2 hover:text-primary transition-colors btn-bounce-hover"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="tabular-nums font-bold text-sm">
+                  {selectedImageIndex + 1} / {images.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
+                  aria-label="Next image"
+                  className="p-2 hover:text-primary transition-colors btn-bounce-hover"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Thumbnail grid — desktop only */}
+            {images.length > 1 && (
+              <div className="hidden lg:grid grid-cols-4 gap-4">
+                {(images as string[]).map((src: string, index: number) => (
                   <button
                     key={src}
                     onClick={() => setSelectedImageIndex(index)}
                     className={cn(
-                      "relative aspect-square overflow-hidden rounded-xl transition-all duration-200",
+                      "relative aspect-square overflow-hidden rounded-2xl transition-all duration-300 btn-bounce-hover",
                       index === selectedImageIndex
-                        ? "ring-2 ring-foreground ring-offset-2"
-                        : "ring-1 ring-border hover:ring-foreground/40 opacity-70 hover:opacity-100",
+                        ? "ring-2 ring-foreground ring-offset-2 opacity-100"
+                        : "ring-1 ring-border hover:ring-foreground/45 opacity-60 hover:opacity-100",
                     )}
                   >
                     <img
@@ -210,67 +276,60 @@ function ProductDetailPage() {
           </div>
 
           {/* ═══════════ RIGHT: Product Details ═══════════ */}
-          <div className="flex flex-col lg:pt-2">
-            {/* Product name */}
-            <h1 className="font-display text-3xl sm:text-4xl text-brown leading-tight">
-              {product.name}
+          <div className="px-4 sm:px-0 lg:sticky lg:top-24 space-y-5 flex flex-col mt-5 lg:mt-0">
+            {/* Product name & tag */}
+            <div className="space-y-2">
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl text-brown font-bold leading-tight">
+                {product.name}
+              </h1>
               {product.tag && (
-                <span className="ml-2 text-lg text-muted-foreground font-normal">
-                  — {product.tag}
-                </span>
-              )}
-            </h1>
-
-            {/* Price row */}
-            <div className="mt-4 flex items-center gap-3 flex-wrap">
-              <p
-                className={cn(
-                  "text-2xl font-semibold",
-                  product.soldOut
-                    ? "text-foreground/40 line-through"
-                    : "text-foreground",
-                )}
-              >
-                ₱{product.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })} PHP
-              </p>
-              {product.soldOut && (
-                <span className="rounded-full bg-red-100 text-red-700 text-xs font-bold px-3 py-1 uppercase tracking-wide">
-                  Sold out
+                <span className="inline-flex px-3 py-1 rounded-full bg-accent text-accent-foreground text-[10px] font-bold uppercase tracking-wider">
+                  {product.tag}
                 </span>
               )}
             </div>
 
-            {/* Tax / shipping note */}
-            <p className="mt-1.5 text-xs text-foreground/50">
-              Tax included.{" "}
-              <button
-                onClick={() => navigate({ to: "/shipping-policy" })}
-                className="underline underline-offset-2 hover:text-foreground/70 transition-colors"
+            {/* Price */}
+            <div className="space-y-1">
+              <p
+                className={cn(
+                  "text-xl sm:text-2xl font-bold tracking-tight text-foreground",
+                  isSoldOut && "text-foreground/40 line-through",
+                )}
               >
-                Shipping
-              </button>{" "}
-              calculated at checkout.
-            </p>
-
-            {/* Divider */}
-            <div className="mt-6 border-t border-border" />
-
-            {/* Quantity selector */}
-            <div className="mt-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/60 mb-3">
-                Quantity
+                ₱{product.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })} PHP
               </p>
-              <div className="inline-flex items-center rounded-lg border border-border">
+              {isSoldOut && (
+                <span className="inline-block rounded-full bg-red-100 text-red-700 text-[10px] font-bold px-3 py-1 uppercase tracking-wide">
+                  Sold out
+                </span>
+              )}
+              <p className="text-xs text-foreground/50">
+                Tax included.{" "}
+                <button
+                  onClick={() => navigate({ to: "/shipping-policy" })}
+                  className="underline underline-offset-2 hover:text-foreground transition-colors font-semibold"
+                >
+                  Shipping
+                </button>{" "}
+                calculated at checkout.
+              </p>
+            </div>
+
+            {/* Quantity Selector */}
+            <div className="space-y-2 text-left">
+              <span className="text-sm font-medium text-foreground/75">Quantity</span>
+              <div className="flex items-center gap-0 border border-border/80 rounded-lg bg-white w-36 overflow-hidden shadow-sm">
                 <button
                   type="button"
                   onClick={() => canDecrement && setQuantity((q) => q - 1)}
                   disabled={!canDecrement}
                   aria-label="Decrease quantity"
-                  className="grid place-items-center w-11 h-11 text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="grid place-items-center w-11 h-11 text-foreground/60 hover:text-foreground hover:bg-accent/40 disabled:opacity-30 transition-all"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
-                <span className="w-12 text-center text-sm font-semibold text-foreground tabular-nums select-none">
+                <span className="flex-1 text-center text-sm font-bold text-foreground select-none tabular-nums border-x border-border/60 h-11 flex items-center justify-center">
                   {quantity}
                 </span>
                 <button
@@ -278,38 +337,32 @@ function ProductDetailPage() {
                   onClick={() => canIncrement && setQuantity((q) => q + 1)}
                   disabled={!canIncrement}
                   aria-label="Increase quantity"
-                  className="grid place-items-center w-11 h-11 text-foreground/60 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="grid place-items-center w-11 h-11 text-foreground/60 hover:text-foreground hover:bg-accent/40 disabled:opacity-30 transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
               {product.stock_qty != null && product.stock_qty > 0 && product.stock_qty <= 10 && (
-                <p className="mt-2 text-xs text-amber-600 font-medium">
-                  Only {product.stock_qty} left in stock
+                <p className="text-xs text-amber-600 font-semibold uppercase tracking-wider">
+                  Only {product.stock_qty} left in stock!
                 </p>
               )}
             </div>
 
             {/* Action buttons */}
-            <div className="mt-6 flex flex-col gap-3">
-              {/* Add to cart / Sold out */}
+            <div className="flex flex-col gap-3 pt-1">
+              {/* Add to cart */}
               <button
                 type="button"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
                 className={cn(
-                  "w-full flex items-center justify-center gap-2.5 rounded-lg px-6 py-4 text-sm font-semibold uppercase tracking-wider transition-all duration-200",
-                  isOutOfStock
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
-                    : "bg-white text-foreground border border-foreground hover:bg-foreground hover:text-white",
+                  "w-full flex items-center justify-center gap-2.5 rounded-full px-6 py-4 text-xs font-bold uppercase tracking-wider border border-foreground bg-white text-foreground hover:bg-foreground hover:text-white transition-all duration-200 btn-bounce-hover shadow-sm",
+                  isOutOfStock && "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed",
                 )}
               >
-                {added ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <ShoppingBag className="h-4 w-4" />
-                )}
-                {product.soldOut
+                {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
+                {isSoldOut
                   ? "Sold out"
                   : isOutOfStock
                     ? "Max quantity reached"
@@ -318,15 +371,15 @@ function ProductDetailPage() {
                       : "Add to cart"}
               </button>
 
-              {/* Buy now button */}
-              {!product.soldOut && !isOutOfStock && (
+              {/* Buy now */}
+              {!isSoldOut && !isOutOfStock && (
                 <button
                   type="button"
                   onClick={() => {
                     handleAddToCart();
                     navigate({ to: "/checkout" });
                   }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-lg px-6 py-4 text-sm font-semibold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-full px-6 py-4 text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-all btn-bounce-hover shadow-soft"
                 >
                   Buy it now
                 </button>
@@ -335,183 +388,77 @@ function ProductDetailPage() {
 
             {/* Description */}
             {product.description && (
-              <div className="mt-8">
-                <p className="text-sm leading-7 text-foreground/70 whitespace-pre-line">
-                  {product.description}
-                </p>
-              </div>
+              <p className="text-sm leading-relaxed text-foreground/75 whitespace-pre-line pt-1">
+                {product.description}
+              </p>
             )}
 
-            {/* Product info badges */}
-            <div className="mt-8 space-y-4">
-              {/* Category */}
-              {product.category && (
-                <div className="flex items-start gap-3">
-                  <Package className="w-4 h-4 text-foreground/40 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/50">
-                      Category
-                    </p>
-                    <p className="mt-0.5 text-sm text-foreground/80">
-                      {product.category}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Availability */}
-              <div className="flex items-start gap-3">
-                <Shield className="w-4 h-4 text-foreground/40 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/50">
-                    Availability
-                  </p>
-                  <p className="mt-0.5 text-sm text-foreground/80">
-                    {product.soldOut
-                      ? "Currently sold out"
-                      : product.stock_qty != null
-                        ? `${product.stock_qty} available`
-                        : "In stock"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Estimated shipping time */}
-            <div className="mt-8 pt-6 border-t border-border">
-              <div className="flex items-start gap-3">
-                <Truck className="w-4 h-4 text-foreground/40 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/50 underline underline-offset-2">
-                    Estimated shipping time
-                  </p>
-                  <div className="mt-2 space-y-1 text-sm text-foreground/70">
-                    <p>Philippines: 4-6 business days</p>
-                    <p>Other Countries: 14-20 business days</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Kindly note */}
-            <div className="mt-6 pt-6 border-t border-border">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-foreground/50 underline underline-offset-2 mb-2">
-                Kindly Note:
-              </p>
-              <div className="space-y-2 text-xs text-foreground/50 leading-5">
-                <p>
-                  *Actual colour may vary slightly from photos due to lighting
-                  &amp; screen settings.
-                </p>
-                <p>
-                  *Shipping times are estimated only &amp; might be subject to
-                  delays due to unforeseen circumstances.
-                </p>
-              </div>
-            </div>
-
             {/* Share button */}
-            <div className="mt-6 pt-6 border-t border-border">
+            <div className="flex justify-start border-t border-border/80 pt-4">
               <button
                 type="button"
                 onClick={() => {
                   if (navigator.share) {
-                    navigator.share({
-                      title: product.name,
-                      url: window.location.href,
-                    });
+                    navigator.share({ title: product.name, url: window.location.href });
                   } else {
                     navigator.clipboard.writeText(window.location.href);
                   }
                 }}
-                className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground/60 hover:text-primary transition-colors btn-bounce-hover"
               >
-                <Share2 className="w-4 h-4" />
+                <Upload className="w-4 h-4" />
                 Share
               </button>
             </div>
 
-            {/* Collapsible sections */}
-            <div className="mt-4 border-t border-border divide-y divide-border">
-              {/* Materials */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => toggleSection("materials")}
-                  className="w-full flex items-center justify-between py-4 text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    Materials
-                  </span>
-                  {openSection === "materials" ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </button>
-                {openSection === "materials" && (
-                  <div className="pb-4 text-sm text-foreground/60 leading-6 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <p>Handcrafted with premium materials. Each piece is unique and made with love.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Shipping & Returns */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => toggleSection("shipping")}
-                  className="w-full flex items-center justify-between py-4 text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Truck className="w-4 h-4" />
-                    Shipping &amp; Returns
-                  </span>
-                  {openSection === "shipping" ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </button>
-                {openSection === "shipping" && (
-                  <div className="pb-4 text-sm text-foreground/60 leading-6 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <p>
-                      We ship within 1-3 business days. Standard delivery takes 4-6 business days within the Philippines and 14-20 business days internationally.
-                    </p>
-                    <p className="mt-2">
-                      Returns are accepted within 7 days of delivery for unused items in original packaging.
+            {/* Collapsible Accordions */}
+            <div className="border-t border-border/80">
+              {accordions.map(({ key, icon, title, content }) => (
+                <div key={key} className="border-b border-border/80">
+                  <button
+                    type="button"
+                    onClick={() => toggleAccordion(key)}
+                    aria-expanded={openAccordion === key}
+                    className="w-full flex items-center justify-between gap-3 py-4 text-left group"
+                  >
+                    <span className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                      {icon}
+                      {title}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 text-foreground/50 shrink-0 transition-transform duration-300",
+                        openAccordion === key && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  <div
+                    className={cn(
+                      "overflow-hidden transition-all duration-300 ease-in-out",
+                      openAccordion === key ? "max-h-48 opacity-100 pb-4" : "max-h-0 opacity-0",
+                    )}
+                  >
+                    <p className="text-xs text-foreground/70 leading-relaxed">
+                      {content}
                     </p>
                   </div>
-                )}
-              </div>
-
-              {/* Care Instructions */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => toggleSection("care")}
-                  className="w-full flex items-center justify-between py-4 text-sm font-semibold text-foreground hover:text-foreground/80 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    Care Instructions
-                  </span>
-                  {openSection === "care" ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </button>
-                {openSection === "care" && (
-                  <div className="pb-4 text-sm text-foreground/60 leading-6 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <p>Handle with care. Keep away from water and direct sunlight. Clean gently with a dry soft cloth.</p>
-                  </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
+        {/* ── RELATED PRODUCTS ──────────────────────────────────────────── */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-20 pt-16 border-t border-border/80">
+            <h2 className="font-display text-3xl text-brown font-bold mb-8">Related products</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-6 sm:gap-6">
+              {relatedProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
