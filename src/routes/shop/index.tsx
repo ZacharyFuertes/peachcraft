@@ -46,14 +46,11 @@ function ShopPage() {
   }, []);
 
   return (
-    <section className="bg-cream py-10 sm:py-20 min-h-screen">
+    <section className="bg-white py-10 sm:py-20 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="max-w-2xl mx-auto space-y-3 mb-8 sm:mb-0 sm:text-center">
           <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary hidden sm:inline-block">The Collection</span>
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-brown font-bold tracking-tight">Products</h1>
-          <p className="text-foreground/70 text-sm leading-relaxed max-w-xl sm:mx-auto hidden sm:block">
-            Sculpted one piece at a time. Restocks happen every Friday — join our newsletter below so you never miss a drop!
-          </p>
         </header>
 
         {isAdminPreview ? (

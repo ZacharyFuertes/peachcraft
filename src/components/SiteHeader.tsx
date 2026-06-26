@@ -223,31 +223,18 @@ export function SiteHeader() {
 
   return (
     <>
-      {/* Announcement bars */}
-      <div className="bg-primary text-primary-foreground text-sm py-2 text-center font-medium">
-        <span aria-hidden></span> Shop is OPEN for all orders
-      </div>
-      <div className="bg-blush text-blush-foreground text-sm py-2 text-center font-medium relative overflow-hidden">
-        <span className="relative z-10">Free shipping on orders ₱1,000+</span>
-        <span className="absolute inset-0 marquee-strip pointer-events-none" aria-hidden />
-      </div>
 
       <header
-        className={cn(
-          "sticky top-0 z-50 transition-all duration-300 backdrop-blur-md border-b",
-          scrolled
-            ? "bg-background/90 border-border/80 shadow-soft py-2"
-            : "bg-background/70 border-transparent py-4",
-        )}
+        className="sticky top-0 z-50 bg-sage-deep text-background border-b border-white/10 py-3"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
           {/* ── SEARCH MODE ── */}
           {searchOpen ? (
-            <div
-              data-search-bar
-              className="flex items-center gap-3 h-16 lg:h-20 animate-in fade-in slide-in-from-top-1 duration-200"
-            >
+              <div
+                data-search-bar
+                className="flex items-center gap-3 h-14 lg:h-16 animate-in fade-in slide-in-from-top-1 duration-200 bg-background rounded-xl px-3"
+              >
               {/* Search icon (static) */}
               <Search className="w-5 h-5 text-foreground/50 shrink-0" aria-hidden />
 
@@ -290,12 +277,12 @@ export function SiteHeader() {
                   className="w-10 h-10 object-contain transition-transform group-hover:rotate-12 duration-300"
                 />
                 <span className="font-display text-2xl">
-                  <span className="text-brown">Peach</span>{" "}
-                  <span className="text-primary font-bold">Craft</span>
+                  <span className="text-background">Peach</span>{" "}
+                  <span className="text-blush font-bold">Craft</span>
                 </span>
               </Link>
 
-              <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/40 backdrop-blur-md border border-border px-1 py-1 rounded-full shadow-soft">
+              <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/10 border border-white/20 px-1 py-1 rounded-full">
                 {nav.map((item) => {
                   const active = location.pathname.startsWith(item.to);
                   return (
@@ -305,8 +292,8 @@ export function SiteHeader() {
                       className={cn(
                         "relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 btn-bounce-hover",
                         active
-                          ? "bg-primary text-primary-foreground shadow-soft"
-                          : "text-foreground/80 hover:text-primary hover:bg-accent/40",
+                          ? "bg-blush text-blush-foreground"
+                          : "text-background/80 hover:text-background hover:bg-white/10",
                       )}
                     >
                       {item.label}
@@ -321,20 +308,20 @@ export function SiteHeader() {
                   type="button"
                   aria-label="Search"
                   onClick={openSearch}
-                  className="grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 transition-colors btn-bounce-hover shrink-0"
+                  className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors btn-bounce-hover shrink-0"
                 >
-                  <Search className="w-4 h-4 text-foreground" />
+                  <Search className="w-4 h-4 text-background" />
                 </button>
 
                 {/* Cart */}
                 <Link
                   to="/cart"
                   aria-label={`Cart, ${itemCount} items`}
-                  className="grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 transition-colors relative btn-bounce-hover shrink-0"
+                  className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors relative btn-bounce-hover shrink-0"
                 >
                   <ShoppingBag
                     className={cn(
-                      "w-4 h-4 transition-transform text-foreground",
+                      "w-4 h-4 transition-transform text-background",
                       cartBouncing && "animate-cart-bounce",
                     )}
                   />
@@ -348,14 +335,14 @@ export function SiteHeader() {
                   <div className="hidden lg:flex items-center gap-2 ml-1">
                     <div
                       title={userEmail ?? ""}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-soft select-none border border-border"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-blush text-blush-foreground text-sm font-semibold select-none border border-white/20"
                     >
                       {initial}
                     </div>
                     <button
                       type="button"
                       onClick={handleSignOut}
-                      className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-border bg-white/40 rounded-full text-xs font-semibold text-foreground hover:bg-accent/40 hover:text-primary transition-colors btn-bounce-hover"
+                      className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-white/20 bg-white/10 rounded-full text-xs font-semibold text-background hover:bg-white/20 transition-colors btn-bounce-hover"
                     >
                       Sign out
                     </button>
@@ -364,7 +351,7 @@ export function SiteHeader() {
                   <Link
                     to="/login"
                     id="header-sign-in-btn"
-                    className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-all btn-bounce-hover shadow-soft"
+                    className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-blush text-blush-foreground text-xs font-semibold hover:bg-blush/90 transition-all btn-bounce-hover"
                   >
                     <UserCircle2 className="w-3.5 h-3.5 mr-1" aria-hidden />
                     Sign In
@@ -377,9 +364,9 @@ export function SiteHeader() {
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                   aria-expanded={mobileOpen}
                   onClick={() => setMobileOpen((v) => !v)}
-                  className="lg:hidden grid place-items-center w-10 h-10 rounded-full bg-white/40 border border-border hover:bg-accent/40 btn-bounce-hover"
+                  className="lg:hidden grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 btn-bounce-hover"
                 >
-                  {mobileOpen ? <X className="w-4 h-4 text-foreground" /> : <Menu className="w-4 h-4 text-foreground" />}
+                  {mobileOpen ? <X className="w-4 h-4 text-background" /> : <Menu className="w-4 h-4 text-background" />}
                 </button>
               </div>
             </div>
@@ -390,14 +377,14 @@ export function SiteHeader() {
         {mobileOpen && !searchOpen && (
           <nav
             aria-label="Mobile"
-            className="lg:hidden border-b border-border bg-background/95 backdrop-blur-md animate-fade-in rounded-b-[2rem] shadow-soft overflow-hidden"
+            className="lg:hidden border-b border-white/10 bg-sage-deep animate-fade-in rounded-b-[2rem] overflow-hidden"
           >
             <ul className="px-6 py-6 space-y-2">
               {nav.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className="block px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent text-foreground transition-all"
+                    className="block px-4 py-3 rounded-2xl text-base font-semibold hover:bg-white/10 text-background transition-all"
                   >
                     {item.label}
                   </Link>
@@ -408,14 +395,14 @@ export function SiteHeader() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent text-foreground/80 transition-all"
+                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold hover:bg-white/10 text-background/80 transition-all"
                   >
                     Sign out
                   </button>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-bold text-primary hover:bg-accent transition-all"
+                    className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-bold text-blush hover:bg-white/10 transition-all"
                   >
                     <UserCircle2 className="w-5 h-5" aria-hidden />
                     Sign In

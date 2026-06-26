@@ -130,7 +130,7 @@ function RootComponent() {
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>
-        {!hideShell && <SiteFooter />}
+        {!hideShell && <SiteFooter compact={/^\/shop\/[^/]+$/.test(router.state.location.pathname)} />}
       </CartToastProvider>
     </QueryClientProvider>
   );

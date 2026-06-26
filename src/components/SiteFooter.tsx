@@ -2,13 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { Instagram, Music2, Mail, Sparkles, ArrowRight } from "lucide-react";
 import { useState } from "react";
 
-export function SiteFooter() {
+export function SiteFooter({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
 
   return (
     <footer className="bg-sage-deep text-background mt-0 border-t border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 grid gap-12 lg:grid-cols-[1.2fr_1fr_1.2fr]">
+      <div className={"max-w-7xl mx-auto px-4 sm:px-6 grid gap-12 lg:grid-cols-[1.2fr_1fr_1.2fr] " + (compact ? "py-6" : "py-16")}>
         {/* Column 1: Brand & Socials */}
         <div className="space-y-6">
           <div className="font-display text-3xl font-bold tracking-tight">
@@ -109,7 +109,7 @@ export function SiteFooter() {
 
       {/* Bottom Bar */}
       <div className="border-t border-white/10 bg-black/5">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-background/65">
+        <div className={"max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-background/65 " + (compact ? "py-3" : "py-6")}>
           <p>© 2026 Peach Craft. All rights reserved. Made with 🍑 &amp; love.</p>
           <div className="flex gap-6 font-medium">
             <Link to="/shipping-policy" className="hover:text-blush transition-colors">Shipping Policy</Link>
