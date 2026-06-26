@@ -16,6 +16,11 @@ dist-ssr
 .nitro
 *.local
 
+#PSG MD
+website.detailed.md
+structure.md
+
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

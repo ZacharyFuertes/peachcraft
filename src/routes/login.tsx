@@ -26,7 +26,7 @@ function LoginPage() {
     setIsLoading(true);
 
     const supabase = getSupabaseClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
     setIsLoading(false);
 
@@ -79,7 +79,7 @@ function LoginPage() {
           <input
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => setEmail(event.target.value.trimStart())}
             className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 font-sans text-[var(--foreground)] outline-none"
           />
 
