@@ -434,10 +434,10 @@ function CheckoutPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={mutation.isLoading}
+              disabled={mutation.isPending}
               className="inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:bg-primary/90 disabled:opacity-50"
             >
-              {mutation.isLoading ? "Placing order..." : "Place order"}
+              {mutation.isPending ? "Placing order..." : "Place order"}
             </button>
           </div>
 

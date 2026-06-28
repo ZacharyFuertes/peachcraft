@@ -1,136 +1,366 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { formatDistanceToNowStrict, format } from "date-fns";
-import { getAdminDashboardData, type AdminDashboardData } from "@/lib/api/supabase.functions";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import { cn } from "@/lib/utils";
+import {
+  Package,
+  TrendingUp,
+  DollarSign,
+  ShoppingCart,
+  Users,
+  Clock,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getDashboardData, type DashboardData } from "@/lib/api/dashboard.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
 });
 
-const statusColors: Record<string, string> = {
-  pending: "bg-[var(--blush)] text-[var(--foreground)]",
-  confirmed: "bg-[var(--sage)] text-[var(--foreground)]",
-  shipped: "bg-[var(--sage-deep)] text-[var(--foreground)]",
-  delivered: "bg-[var(--cream)] text-[var(--foreground)]",
-  cancelled: "bg-[#f87171] text-[var(--foreground)]",
-};
+const CATEGORY_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#e879f9", "#f472b6", "#fb7185", "#f87171"];
+
+const statCardConfig = [
+  { label: "Total Products", icon: Package, color: "bg-violet-500", key: "totalProducts" as const, format: (v: number) => v.toLocaleString() },
+  { label: "Total Orders", icon: ShoppingCart, color: "bg-blue-500", key: "totalOrders" as const, format: (v: number) => v.toLocaleString() },
+  { label: "Total Revenue", icon: DollarSign, color: "bg-emerald-500", key: "totalRevenue" as const, format: (v: number) => `₱${v.toLocaleString()}` },
+  { label: "Low Stock Items", icon: Package, color: "bg-orange-500", key: "lowStockCount" as const, format: (v: number) => v.toLocaleString() },
+];
+
+type SortKey = "name" | "stocks" | "price" | "sales" | "earnings";
+
+function StatCardSkeleton() {
+  return (
+    <div className="rounded-xl border bg-white p-5 shadow-sm animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="h-10 w-10 rounded-lg bg-gray-200" />
+        <div className="h-4 w-16 rounded bg-gray-200" />
+      </div>
+      <div className="mt-4 h-8 w-28 rounded bg-gray-200" />
+      <div className="mt-2 h-4 w-20 rounded bg-gray-200" />
+    </div>
+  );
+}
+
+function ChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("rounded-xl border bg-white p-5 shadow-sm animate-pulse", className)}>
+      <div className="h-5 w-36 rounded bg-gray-200 mb-2" />
+      <div className="h-4 w-48 rounded bg-gray-200 mb-6" />
+      <div className="h-[200px] rounded bg-gray-100" />
+    </div>
+  );
+}
 
 function AdminDashboard() {
-  const { data, isLoading, error } = useQuery<AdminDashboardData>({
+  const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ["admin-dashboard"],
-    queryFn: getAdminDashboardData,
+    queryFn: getDashboardData,
   });
+
+  const [sortKey, setSortKey] = useState<SortKey>("sales");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const sortedProducts = data
+    ? [...data.topProducts].sort((a, b) => {
+        const aVal = a[sortKey];
+        const bVal = b[sortKey];
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return sortDir === "asc"
+          ? (aVal as number) - (bVal as number)
+          : (bVal as number) - (aVal as number);
+      })
+    : [];
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-40 rounded-3xl bg-[var(--card)] shadow-soft" />
+        <div>
+          <div className="h-7 w-36 rounded bg-gray-200 animate-pulse" />
+          <div className="mt-1 h-4 w-56 rounded bg-gray-200 animate-pulse" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <StatCardSkeleton key={i} />
           ))}
         </div>
-        <div className="h-72 rounded-3xl bg-[var(--card)] shadow-soft" />
+        <div className="grid gap-6 lg:grid-cols-5">
+          <ChartSkeleton className="lg:col-span-3" />
+          <ChartSkeleton className="lg:col-span-2" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-5">
+          <ChartSkeleton className="lg:col-span-2 h-[320px]" />
+          <ChartSkeleton className="lg:col-span-3 h-[320px]" />
+        </div>
       </div>
     );
   }
 
   if (error) {
-    return <p className="rounded-3xl bg-[var(--card)] p-6 text-sm text-[#f87171]">{error instanceof Error ? error.message : "Could not load dashboard data."}</p>;
+    return (
+      <div className="rounded-xl border bg-red-50 p-6">
+        <p className="text-sm font-medium text-red-800">Failed to load dashboard data</p>
+        <p className="mt-1 text-xs text-red-600">{error instanceof Error ? error.message : "Unknown error"}</p>
+      </div>
+    );
   }
 
+  const chartData = data!.revenueByMonth.map((d) => ({
+    name: d.month.slice(5),
+    revenue: d.revenue,
+  }));
+
+  const totalCatCount = data!.categories.reduce((sum, c) => sum + c.count, 0);
+
+  const activityIcons: Record<string, typeof ShoppingCart> = {
+    new_order: ShoppingCart,
+    low_stock: Package,
+    new_user: Users,
+    payment: TrendingUp,
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.25em] text-[var(--foreground)]/70">Admin dashboard</p>
-          <h1 className="mt-2 text-4xl font-semibold text-[var(--foreground)]">Overview</h1>
-        </div>
-
-        <a
-          href="/shop"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-5 py-3 text-sm font-semibold text-[var(--foreground)] shadow-soft transition hover:bg-[var(--sage-deep)]"
-        >
-          Preview store
-        </a>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-500">Your store overview at a glance</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card label="Today's Revenue" value={`₱${data?.todaysRevenue.toLocaleString("en-PH") ?? "0"}`} />
-        <Card label="Today's Orders" value={`${data?.todaysOrders ?? 0}`} />
-        <Card label="Pending Orders" value={`${data?.pendingOrders ?? 0}`} />
-        <Card label="Low Stock" value={`${data?.lowStock.length ?? 0}`} />
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statCardConfig.map((cfg) => {
+          const value = data![cfg.key];
+          return (
+            <div key={cfg.label} className="rounded-xl border bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", cfg.color)}>
+                  <cfg.icon className="h-5 w-5 text-white" />
+                </div>
+              </div>
+              <p className="mt-4 text-2xl font-bold text-gray-900">{cfg.format(value)}</p>
+              <p className="mt-1 text-sm text-gray-500">{cfg.label}</p>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-3xl bg-[var(--card)] p-6 shadow-soft">
-          <div className="mb-5 flex items-center justify-between gap-4">
+      {/* Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Sales Revenue Bar Chart */}
+        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-3">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-[var(--foreground)]">Recent orders</h2>
-              <p className="text-sm text-[var(--foreground)]/70">Latest 5 placed orders</p>
+              <h2 className="text-base font-semibold text-gray-900">Sales Revenue</h2>
+              <p className="text-xs text-gray-500">Monthly revenue (last 12 months)</p>
             </div>
           </div>
-
-          <div className="overflow-hidden rounded-3xl border border-[var(--border)]">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-[var(--background)] text-[var(--foreground)]/75">
-                <tr>
-                  <th className="px-5 py-4">Order</th>
-                  <th className="px-5 py-4">Customer</th>
-                  <th className="px-5 py-4">Total</th>
-                  <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Placed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.recentOrders.map((order) => (
-                  <tr key={order.id} className="border-t border-[var(--border)]">
-                    <td className="px-5 py-4 font-semibold text-[var(--foreground)]">{order.id.slice(0, 8)}</td>
-                    <td className="px-5 py-4 text-[var(--foreground)]/80">{order.user_email}</td>
-                    <td className="px-5 py-4 text-[var(--foreground)]">₱{order.total_amount.toLocaleString("en-PH")}</td>
-                    <td className="px-5 py-4">
-                      <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-semibold", statusColors[order.status] ?? "bg-[var(--card)] text-[var(--foreground)]")}>{order.status}</span>
-                    </td>
-                    <td className="px-5 py-4 text-[var(--foreground)]/80">{formatDistanceToNowStrict(new Date(order.created_at), { addSuffix: true })}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: "#9ca3af" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value: number) => [`₱${value.toLocaleString()}`, "Revenue"]}
+                  contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px" }}
+                />
+                <Bar dataKey="revenue" radius={[4, 4, 0, 0]} fill="#6366f1" maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </section>
+        </div>
 
-        <section className="rounded-3xl bg-[var(--card)] p-6 shadow-soft">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-[var(--foreground)]">Low stock</h2>
-            <p className="text-sm text-[var(--foreground)]/70">Products selling out soon</p>
+        {/* Top Categories Donut Chart */}
+        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-2">
+          <h2 className="text-base font-semibold text-gray-900">Product Categories</h2>
+          <p className="text-xs text-gray-500 mb-4">Category distribution</p>
+          <div className="flex h-[200px] items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data!.categories.map((c, i) => ({ ...c, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }))}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="count"
+                  nameKey="name"
+                >
+                  {data!.categories.map((entry, i) => (
+                    <Cell key={entry.name} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => [`${value}`, "Products"]} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-          <div className="space-y-3">
-            {data?.lowStock.length ? (
-              data.lowStock.map((product) => (
-                <div key={product.id} className="rounded-3xl bg-[var(--blush)]/20 p-4 shadow-soft">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-[var(--foreground)]">{product.name}</p>
-                    <span className="rounded-full bg-[var(--blush)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">{product.stock_qty ?? 0} left</span>
-                  </div>
+          <div className="mt-2 space-y-2">
+            {data!.categories.map((cat, i) => (
+              <div key={cat.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }}
+                  />
+                  <span className="text-gray-600">{cat.name}</span>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-[var(--foreground)]/70">No products are low on stock.</p>
-            )}
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-gray-900">{cat.count}</span>
+                  <span className="text-xs text-gray-400">
+                    ({totalCatCount > 0 ? ((cat.count / totalCatCount) * 100).toFixed(0) : 0}%)
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
       </div>
-    </div>
-  );
-}
 
-function Card({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-3xl bg-[var(--card)] p-6 shadow-soft">
-      <p className="text-sm uppercase tracking-[0.18em] text-[var(--foreground)]/70">{label}</p>
-      <p className="mt-4 text-3xl font-semibold text-[var(--foreground)]">{value}</p>
+      {/* Bottom Row */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Recent Activity */}
+        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-2">
+          <h2 className="text-base font-semibold text-gray-900">Recent Activity</h2>
+          <p className="text-xs text-gray-500 mb-4">Latest store events</p>
+          {data!.recentActivity.length === 0 ? (
+            <p className="text-sm text-gray-400">No recent activity</p>
+          ) : (
+            <div className="space-y-4">
+              {data!.recentActivity.map((activity, i) => {
+                const Icon = activityIcons[activity.type] ?? ShoppingCart;
+                return (
+                  <div key={i} className="flex gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                      <Icon className="h-4 w-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-gray-900 truncate">{activity.title}</p>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "shrink-0 rounded-full border-0 px-2 py-0 text-[10px] font-medium",
+                            activity.badge.color,
+                          )}
+                        >
+                          {activity.badge.label}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">{activity.subtitle}</p>
+                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-gray-400">
+                        <Clock className="h-3 w-3" />
+                        {activity.time}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Top Products Table */}
+        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-3">
+          <h2 className="text-base font-semibold text-gray-900">Top Products</h2>
+          <p className="text-xs text-gray-500 mb-4">Best selling products by revenue</p>
+          {data!.topProducts.length === 0 ? (
+            <p className="text-sm text-gray-400">No product sales data yet</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Product</TableHead>
+                  {(["stocks", "price", "sales", "earnings"] as const).map((key) => (
+                    <TableHead
+                      key={key}
+                      className="cursor-pointer hover:text-gray-900"
+                      onClick={() => toggleSort(key)}
+                    >
+                      <div className="flex items-center gap-1">
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                        {sortKey === key && (
+                          <span className="text-[10px]">{sortDir === "asc" ? "▲" : "▼"}</span>
+                        )}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="h-9 w-9 rounded-md object-cover bg-gray-100"
+                          />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-gray-100 text-gray-400 text-xs">
+                            N/A
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-900 truncate max-w-[140px]">
+                          {product.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600">{product.stocks}</TableCell>
+                    <TableCell className="text-gray-600">₱{product.price.toLocaleString()}</TableCell>
+                    <TableCell className="text-gray-600">{product.sales}</TableCell>
+                    <TableCell className="font-medium text-gray-900">
+                      ₱{product.earnings.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

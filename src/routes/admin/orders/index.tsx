@@ -135,7 +135,8 @@ function AdminOrdersPage() {
                   <td className="px-5 py-4 text-[var(--foreground)]/80">{format(new Date(order.created_at), "MMM d, yyyy")}</td>
                   <td className="px-5 py-4">
                     <Link
-                      to={`/admin/orders/${order.id}`}
+                      to="/admin/orders/$id"
+                      params={{ id: order.id }}
                       className="inline-flex rounded-full bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] shadow-soft hover:bg-[var(--foreground)]/10"
                     >
                       View

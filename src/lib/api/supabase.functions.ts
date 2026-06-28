@@ -437,7 +437,7 @@ export const getAdminProducts = createServerFn({ method: "GET" }).handler(async 
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,price,category,stock_qty,is_active")
+    .select("id,name,price,category,stock_qty,is_active,images")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -806,101 +806,216 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return updated[0];
   });
 
+export type AnalyticsData = {
+  allTimeRevenue: number;
+  allTimeOrderCount: number;
+  avgOrderValue: number;
+  revenueThisMonth: number;
+  revenueLastMonth: number;
+  ordersThisMonth: number;
+  ordersLastMonth: number;
+  lowStockCount: number;
+  newCustomersThisMonth: number;
+  newCustomersLastMonth: number;
+  revenueSeries: { date: string; revenue: number }[];
+  orderCountSeries: { date: string; count: number }[];
+  statusSeries: { status: string; count: number }[];
+  categoryRevenue: { name: string; revenue: number }[];
+  topProducts: { name: string; sales: number; revenue: number }[];
+  customerGrowth: { month: string; count: number }[];
+};
+
 export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = getSupabaseServer();
 
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 29);
-  start.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const start30 = new Date(now);
+  start30.setDate(start30.getDate() - 29);
+  start30.setHours(0, 0, 0, 0);
 
-  const { data: orders, error: ordersError } = await supabase
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+  // ---- Orders (last 30 days) ----
+  const { data: recentOrders, error: ordersError } = await supabase
     .from("orders")
     .select("id,total_amount,status,created_at")
-    .gte("created_at", start.toISOString())
+    .gte("created_at", start30.toISOString())
     .order("created_at", { ascending: true });
 
-  if (ordersError) {
-    throw ordersError;
-  }
+  if (ordersError) throw ordersError;
 
-  const todayData = orders ?? [];
+  // ---- All-time orders for totals ----
+  const { data: allOrders, error: allOrdersError } = await supabase
+    .from("orders")
+    .select("id,total_amount,status,created_at")
+    .order("created_at", { ascending: false });
+
+  if (allOrdersError) throw allOrdersError;
+
+  // ---- Order items for product/category revenue ----
+  const { data: items, error: itemsError } = await supabase
+    .from("order_items")
+    .select("product_id,qty,price_at_purchase");
+
+  if (itemsError) throw itemsError;
+
+  // ---- Products ----
+  const { data: products, error: prodError } = await supabase
+    .from("products")
+    .select("id,name,category,stock_qty,is_active");
+
+  if (prodError) throw prodError;
+
+  // ---- Users (counts for customer growth) ----
+  const { data: users, error: usersError } = await supabase
+    .from("users")
+    .select("id,created_at");
+
+  if (usersError) throw usersError;
+
+  // ---- Build 30-day series ----
   const revenueByDate = new Map<string, number>();
+  const orderCountByDate = new Map<string, number>();
   const statusCounts = new Map<string, number>();
-  let dailyDate = new Date(start);
+  const dailyDate = new Date(start30);
 
-  for (let i = 0; i < 30; i += 1) {
+  for (let i = 0; i < 30; i++) {
     const key = dailyDate.toISOString().slice(0, 10);
     revenueByDate.set(key, 0);
+    orderCountByDate.set(key, 0);
     dailyDate.setDate(dailyDate.getDate() + 1);
   }
 
-  let totalRevenue = 0;
-  let trackedOrdersCount = 0;
-
-  (todayData ?? []).forEach((order) => {
+  (recentOrders ?? []).forEach((order) => {
     const day = order.created_at?.slice(0, 10) ?? "";
-    const prevRevenue = revenueByDate.get(day) ?? 0;
-    revenueByDate.set(day, prevRevenue + order.total_amount);
-    totalRevenue += order.total_amount;
-    trackedOrdersCount += 1;
+    revenueByDate.set(day, (revenueByDate.get(day) ?? 0) + order.total_amount);
+    orderCountByDate.set(day, (orderCountByDate.get(day) ?? 0) + 1);
     statusCounts.set(order.status, (statusCounts.get(order.status) ?? 0) + 1);
   });
 
-  const statusArray = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
   const revenueSeries = Array.from(revenueByDate.entries()).map(([date, revenue]) => ({ date, revenue }));
+  const orderCountSeries = Array.from(orderCountByDate.entries()).map(([date, count]) => ({ date, count }));
+  const statusSeries = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
 
-  const { data: items, error: itemsError } = await supabase.from("order_items").select("product_id,qty,price_at_purchase");
-  if (itemsError) {
-    throw itemsError;
+  // ---- All-time metrics ----
+  const deliveredOrders = (allOrders ?? []).filter((o) => o.status === "delivered");
+  const allRevenue = deliveredOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const allOrderCount = (allOrders ?? []).filter((o) => o.status !== "cancelled").length;
+  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
+
+  // ---- This month vs last month ----
+  const thisMonthOrders = (allOrders ?? []).filter(
+    (o) => new Date(o.created_at) >= thisMonthStart && o.status !== "cancelled",
+  );
+  const lastMonthOrders = (allOrders ?? []).filter(
+    (o) => new Date(o.created_at) >= lastMonthStart && new Date(o.created_at) <= lastMonthEnd && o.status !== "cancelled",
+  );
+
+  const revenueThisMonth = thisMonthOrders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + o.total_amount, 0);
+  const revenueLastMonth = lastMonthOrders
+    .filter((o) => o.status === "delivered")
+    .reduce((sum, o) => sum + o.total_amount, 0);
+  const ordersThisMonth = thisMonthOrders.length;
+  const ordersLastMonth = lastMonthOrders.length;
+
+  // ---- Low stock count ----
+  const lowStockCount = (products ?? []).filter(
+    (p) => (p.stock_qty ?? 0) < 5 && p.is_active !== false,
+  ).length;
+
+  // ---- New customers this month vs last month ----
+  const newCustomersThisMonth = (users ?? []).filter(
+    (u) => new Date(u.created_at) >= thisMonthStart,
+  ).length;
+  const newCustomersLastMonth = (users ?? []).filter(
+    (u) => new Date(u.created_at) >= lastMonthStart && new Date(u.created_at) <= lastMonthEnd,
+  ).length;
+
+  // ---- Customer growth (monthly for 12 months) ----
+  const twelveMonthsAgo = new Date(now);
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+  twelveMonthsAgo.setDate(1);
+  twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+  const customerGrowthMap = new Map<string, number>();
+  const monthCursor = new Date(twelveMonthsAgo);
+  for (let i = 0; i < 12; i++) {
+    const key = `${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, "0")}`;
+    customerGrowthMap.set(key, 0);
+    monthCursor.setMonth(monthCursor.getMonth() + 1);
   }
 
-  const productIds = Array.from(new Set((items ?? []).map((item) => item.product_id).filter(Boolean)));
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("id,name")
-    .in("id", productIds);
-
-  if (productsError) {
-    throw productsError;
-  }
-
-  const revenueByProduct = new Map<string, number>();
-  const productMap = new Map<string, string>();
-  (products ?? []).forEach((product) => {
-    productMap.set(product.id, product.name ?? "Unknown");
+  (users ?? []).forEach((u) => {
+    const key = u.created_at?.slice(0, 7) ?? "";
+    if (customerGrowthMap.has(key)) {
+      customerGrowthMap.set(key, (customerGrowthMap.get(key) ?? 0) + 1);
+    }
   });
 
+  const customerGrowth = Array.from(customerGrowthMap.entries()).map(([month, count]) => ({ month, count }));
+
+  // ---- Category revenue ----
+  const productCategoryMap = new Map<string, string>();
+  (products ?? []).forEach((p) => {
+    productCategoryMap.set(p.id, p.category ?? "Uncategorized");
+  });
+
+  const categoryRevenueMap = new Map<string, number>();
   (items ?? []).forEach((item) => {
-    const productName = productMap.get(item.product_id) ?? "Unknown";
-    revenueByProduct.set(
-      productName,
-      (revenueByProduct.get(productName) ?? 0) + item.qty * item.price_at_purchase,
-    );
+    const cat = productCategoryMap.get(item.product_id) ?? "Uncategorized";
+    const rev = item.qty * item.price_at_purchase;
+    categoryRevenueMap.set(cat, (categoryRevenueMap.get(cat) ?? 0) + rev);
   });
 
-  const topProducts = Array.from(revenueByProduct.entries())
+  const categoryRevenue = Array.from(categoryRevenueMap.entries())
     .map(([name, revenue]) => ({ name, revenue }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  // ---- Top products (with sales count) ----
+  const productNameMap = new Map<string, string>();
+  (products ?? []).forEach((p) => {
+    productNameMap.set(p.id, p.name ?? "Unknown");
+  });
+
+  const productSalesMap = new Map<string, { sales: number; revenue: number }>();
+  (items ?? []).forEach((item) => {
+    const existing = productSalesMap.get(item.product_id) ?? { sales: 0, revenue: 0 };
+    existing.sales += item.qty;
+    existing.revenue += item.qty * item.price_at_purchase;
+    productSalesMap.set(item.product_id, existing);
+  });
+
+  const topProducts = Array.from(productSalesMap.entries())
+    .map(([id, data]) => ({
+      name: productNameMap.get(id) ?? "Unknown",
+      sales: data.sales,
+      revenue: data.revenue,
+    }))
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
-  const { data: allOrders, error: allOrdersError } = await supabase.from("orders").select("id,total_amount");
-  if (allOrdersError) {
-    throw allOrdersError;
-  }
-
-  const allRevenue = (allOrders ?? []).reduce((sum, order) => sum + order.total_amount, 0);
-  const allOrderCount = (allOrders ?? []).length;
-  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
-
   return {
-    revenueSeries,
-    statusSeries: statusArray,
-    topProducts,
     allTimeRevenue: allRevenue,
     allTimeOrderCount: allOrderCount,
     avgOrderValue,
-  };
+    revenueThisMonth,
+    revenueLastMonth,
+    ordersThisMonth,
+    ordersLastMonth,
+    lowStockCount,
+    newCustomersThisMonth,
+    newCustomersLastMonth,
+    revenueSeries,
+    orderCountSeries,
+    statusSeries,
+    categoryRevenue,
+    topProducts,
+    customerGrowth,
+  } satisfies AnalyticsData;
 });
 
 export const uploadProductImage = createServerFn({ method: "POST" })
@@ -982,6 +1097,7 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       password: z.string().min(8, "Password must be at least 8 characters"),
       username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
       address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
+      ip: z.string().optional(),
     })
   )
   .handler(async ({ data }) => {
@@ -992,7 +1108,7 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
     // If no IP is provided, this will count under the 'unknown' bucket.
     try {
       const MAX_PER_HOUR = 5;
-      const ip = (data as any).ip ? String((data as any).ip) : "unknown";
+      const ip = data.ip ? String(data.ip) : "unknown";
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       const { data: recentAttempts } = await supabase
@@ -1281,7 +1397,7 @@ export const addCartItem = createServerFn({ method: "POST" })
 
     const { data: savedItem, error: upsertError } = await supabase
       .from("cart_items")
-      .upsert(payload, { onConflict: ["user_id", "product_id"] })
+      .upsert(payload, { onConflict: "user_id,product_id" })
       .select("id,product_id,qty,price,name,image,swatch,stock_qty")
       .single();
 
@@ -1376,7 +1492,7 @@ export const mergeCartItems = createServerFn({ method: "POST" })
 
     const { error: upsertError } = await supabase
       .from("cart_items")
-      .upsert(upsertItems, { onConflict: ["user_id", "product_id"] });
+      .upsert(upsertItems, { onConflict: "user_id,product_id" });
 
     if (upsertError) throw upsertError;
     return { success: true };

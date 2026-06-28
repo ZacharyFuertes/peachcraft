@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient, type SupabaseClientOptions } from "@supabase/supabase-js";
+import { createBrowserClient, createServerClient } from "@supabase/ssr";
 
 const getClientEnv = () => {
   const url =
@@ -27,7 +28,11 @@ const createSupabaseClient = (): SupabaseClient => {
     );
   }
 
-  supabaseClient = createClient(url, anonKey);
+  if (typeof window !== "undefined") {
+    supabaseClient = createBrowserClient(url, anonKey);
+  } else {
+    supabaseClient = createClient(url, anonKey);
+  }
   return supabaseClient;
 };
 

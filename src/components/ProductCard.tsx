@@ -89,7 +89,8 @@ export function ProductCard({ product }: { product: Product }) {
         {/* Name */}
         <h3 className="card__heading">
           <Link
-            to={`/shop/${product.id}`}
+            to="/shop/$id"
+            params={{ id: product.id }}
             id={`CardLink-${product.id}`}
             className="full-unstyled-link"
             onClick={(e) => e.stopPropagation()}

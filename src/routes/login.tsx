@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useRouterState, Link } from "@tanstack/react-router";
+import { useNavigate, useLocation, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { getSupabaseClient } from "@/lib/supabase";
 import { checkEmailVerification } from "@/lib/api/supabase.functions";
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const location = useRouterState((state) => state.location);
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -19,7 +19,7 @@ function LoginPage() {
 
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? "";
   const isAdminAttempt = adminEmail && email.trim().toLowerCase() === adminEmail.toLowerCase();
-  const redirectPath = new URLSearchParams(location.search).get("redirect") ?? "/";
+  const redirectPath = new URLSearchParams(location.searchStr).get("redirect") ?? "/";
 
   const handleSignIn = async () => {
     setError(null);

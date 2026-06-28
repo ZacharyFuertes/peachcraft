@@ -4,6 +4,10 @@ import imageCompression from "browser-image-compression";
 import { cn } from "@/lib/utils";
 import { getSupabaseClient } from "@/lib/supabase";
 import { uploadProductImage } from "@/lib/api/supabase.functions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Alert } from "@/components/ui/alert";
 import type { Product } from "@/lib/supabase";
 
@@ -318,397 +322,336 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-0 z-10 rounded-t-3xl border-b border-[var(--border)] bg-[var(--background)]/95 px-6 py-4 backdrop-blur-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-[var(--foreground)]/70">New product</p>
+      <div className="flex items-center justify-between gap-4 pb-4 border-b">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Product details</h2>
+          <p className="text-sm text-gray-500">Fill in the information below to create your product.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/shop" })}>
+            Preview
+          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? "Saving..." : "Save product"}
+          </Button>
+        </div>
+      </div>
+
+      {formError && (
+        <Alert variant="destructive" className="rounded-lg">
+          {formError}
+        </Alert>
+      )}
+
+      {/* Basic Info */}
+      <div className="rounded-xl border bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Basic info</h3>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="product-name">
+              Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="product-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Product display name"
+            />
+            <p className="text-xs text-gray-400">Enter the product display name.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/shop" })}
-              className="rounded-full border border-[var(--border)] bg-transparent px-5 py-2 text-sm font-semibold text-foreground transition hover:bg-[var(--card)]"
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-5 py-2 text-sm font-semibold text-[var(--foreground)] shadow-soft transition hover:bg-[var(--sage-deep)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? "Saving..." : "Save product"}
-            </button>
+
+          <div className="space-y-2">
+            <Label htmlFor="product-price">
+              Price <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">₱</span>
+              <Input
+                id="product-price"
+                type="text"
+                inputMode="numeric"
+                value={priceInput}
+                onChange={(e) => setPriceInput(e.target.value.replace(/[^0-9]/g, ""))}
+                className="pl-8"
+                placeholder="0"
+              />
+            </div>
+            <p className="text-xs text-gray-400">Set the retail price in Philippine pesos.</p>
+          </div>
+
+          <div className="md:col-span-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="product-desc">Description</Label>
+              <span className="text-xs text-gray-400">{description.length}</span>
+            </div>
+            <textarea
+              id="product-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Describe product details, materials, and benefits..."
+            />
           </div>
         </div>
       </div>
 
-      <div className="space-y-6 p-6">
-        {formError && (
-          <div className="rounded-3xl bg-[#f87171]/10 p-4 text-sm text-[#991b1b]">{formError}</div>
+      {/* Category & Tags */}
+      <div className="rounded-xl border bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Category & tags</h3>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <select
+              value={categorySelect}
+              onChange={(e) => {
+                setCategorySelect(e.target.value);
+                handleCategorySelect(e.target.value);
+              }}
+              className="flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">Select a category</option>
+              {categoryOptions.filter((o) => !selectedCategories.includes(o)).map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+              <option value="new">Add custom category</option>
+            </select>
+            {showCategoryInput && (
+              <div className="flex gap-2">
+                <Input
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="Type a new category"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    addCategory(customCategory);
+                    setCustomCategory("");
+                    setShowCategoryInput(false);
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {selectedCategories.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => removeCategory(value)}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {value}
+                  <span className="text-gray-400">×</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">Choose one or more categories and remove them by clicking the pill.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <select
+              value={tagSelect}
+              onChange={(e) => {
+                setTagSelect(e.target.value);
+                handleTagSelect(e.target.value);
+              }}
+              className="flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">Select a tag</option>
+              {tagOptions.filter((o) => !selectedTags.includes(o)).map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+              <option value="new">Add custom tag</option>
+            </select>
+            {showTagInput && (
+              <div className="flex gap-2">
+                <Input
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  placeholder="Type a new tag"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    addTag(customTag);
+                    setCustomTag("");
+                    setShowTagInput(false);
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {selectedTags.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => removeTag(value)}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {value}
+                  <span className="text-gray-400">×</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">Add tags for special collections, promotions, or product highlights.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Inventory & Appearance */}
+      <div className="rounded-xl border bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Inventory & appearance</h3>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Swatch</Label>
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <div className="flex flex-wrap gap-3">
+                {presetSwatches.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSwatch(value)}
+                    className={cn(
+                      "h-9 w-9 rounded-full border transition-all",
+                      value === swatch
+                        ? "border-indigo-500 outline outline-2 outline-indigo-500 outline-offset-2"
+                        : "border-gray-200",
+                    )}
+                    style={{ backgroundColor: value }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={openColorPicker}
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Custom
+                </button>
+              </div>
+              <input
+                ref={colorInputRef}
+                type="color"
+                value={swatch}
+                onChange={handleCustomColor}
+                className="hidden"
+              />
+            </div>
+            <p className="text-xs text-gray-400">Choose a preset swatch or add a custom color for this product.</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="product-stock">
+              Stock quantity <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="product-stock"
+              type="text"
+              inputMode="numeric"
+              value={stockQtyInput}
+              onChange={(e) => setStockQtyInput(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="0"
+            />
+            {Number(stockQtyInput) > 0 && Number(stockQtyInput) <= 5 ? (
+              <Alert variant="warning" className="rounded-lg text-xs py-2">
+                Low stock warning at 5 units.
+              </Alert>
+            ) : (
+              <p className="text-xs text-gray-400">Low stock warning at 5 units.</p>
+            )}
+          </div>
+
+          <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium text-gray-900">Active</Label>
+              <p className="text-xs text-gray-400">
+                {isActive ? "Active — product is visible in shop" : "Inactive — hidden from shop"}
+              </p>
+            </div>
+            <Switch checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+        </div>
+      </div>
+
+      {/* Images */}
+      <div className="rounded-xl border bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">Product images</h3>
+
+        <div
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            "rounded-lg border-2 border-dashed px-6 py-8 text-center transition cursor-pointer",
+            isDragActive
+              ? "border-indigo-400 bg-indigo-50"
+              : "border-gray-200 bg-gray-50 hover:bg-gray-100/50",
+          )}
+        >
+          <p className="text-sm font-medium text-gray-600">Drag and drop images here</p>
+          <p className="mt-1 text-xs text-gray-400">or click to choose files</p>
+          <Button type="button" variant="outline" size="sm" className="mt-3" onClick={openFileChooser}>
+            Choose files
+          </Button>
+          <p className="mt-2 text-[10px] text-gray-400">
+            JPG, PNG, WEBP, GIF · max 5MB · up to 8 images
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            onChange={(e) => handleImageFiles(e.target.files)}
+            className="hidden"
+          />
+        </div>
+
+        {uploading && (
+          <div className="mt-3 rounded-lg bg-gray-100 px-4 py-2 text-xs text-gray-600">
+            Uploading images... {uploadProgress}%
+          </div>
         )}
 
-        <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-soft">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-[var(--foreground)]/70">Basic info</p>
-              <h2 className="mt-2 text-lg font-semibold text-foreground">Product details</h2>
-            </div>
-          </div>
+        {uploadError && (
+          <p className="mt-2 text-xs text-red-500">{uploadError}</p>
+        )}
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-foreground">
-                  Name <span className="text-[#ef4444]">*</span>
-                </label>
-              </div>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-              />
-              <p className="text-xs text-foreground/70">Enter the product display name.</p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-foreground">
-                  Price <span className="text-[#ef4444]">*</span>
-                </label>
-              </div>
-              <div className="flex items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3">
-                <span className="text-sm text-foreground">₱</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={priceInput}
-                  onChange={(event) => setPriceInput(event.target.value.replace(/[^0-9]/g, ""))}
-                  className="w-full bg-transparent text-foreground outline-none"
-                />
-              </div>
-              <p className="text-xs text-foreground/70">Set the retail price in Philippine pesos.</p>
-            </div>
-
-            <div className="md:col-span-2 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <label className="text-sm font-semibold text-foreground">Description</label>
-                <span className="text-xs text-foreground/70">{description.length}</span>
-              </div>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={5}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-              />
-              <p className="text-xs text-foreground/70">Describe product details, materials, and benefits.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-soft">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-[var(--foreground)]/70">Categorization</p>
-              <h2 className="mt-2 text-lg font-semibold text-foreground">Category & tags</h2>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Category</label>
-              <select
-                value={categorySelect}
-                onChange={(event) => {
-                  setCategorySelect(event.target.value);
-                  handleCategorySelect(event.target.value);
-                }}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-              >
-                <option value="">Select a category</option>
-                {categoryOptions.filter((option) => !selectedCategories.includes(option)).map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-                <option value="new">Add custom category</option>
-              </select>
-              {showCategoryInput && (
-                <div className="flex gap-2">
-                  <input
-                    value={customCategory}
-                    onChange={(event) => setCustomCategory(event.target.value)}
-                    placeholder="Type a new category"
-                    className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addCategory(customCategory);
-                      setCustomCategory("");
-                      setShowCategoryInput(false);
-                    }}
-                    className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] shadow-soft hover:bg-[var(--sage-deep)]"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {selectedCategories.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => removeCategory(value)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-foreground"
-                  >
-                    {value}
-                    <span aria-hidden className="text-[0.85em]">×</span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-foreground/70">Choose one or more categories and remove them by clicking the pill.</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Tags</label>
-              <select
-                value={tagSelect}
-                onChange={(event) => {
-                  setTagSelect(event.target.value);
-                  handleTagSelect(event.target.value);
-                }}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-              >
-                <option value="">Select a tag</option>
-                {tagOptions.filter((option) => !selectedTags.includes(option)).map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-                <option value="new">Add custom tag</option>
-              </select>
-              {showTagInput && (
-                <div className="flex gap-2">
-                  <input
-                    value={customTag}
-                    onChange={(event) => setCustomTag(event.target.value)}
-                    placeholder="Type a new tag"
-                    className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      addTag(customTag);
-                      setCustomTag("");
-                      setShowTagInput(false);
-                    }}
-                    className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] shadow-soft hover:bg-[var(--sage-deep)]"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {selectedTags.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => removeTag(value)}
-                    className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm text-foreground"
-                  >
-                    {value}
-                    <span aria-hidden className="text-[0.85em]">×</span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-foreground/70">Add tags for special collections, promotions, or product highlights.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-soft">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-[var(--foreground)]/70">Variants & stock</p>
-              <h2 className="mt-2 text-lg font-semibold text-foreground">Inventory and appearance</h2>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Swatch</label>
-              <div className="grid gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
-                <div className="flex flex-wrap gap-3">
-                  {presetSwatches.map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setSwatch(value)}
-                      className={cn(
-                        "h-10 w-10 rounded-full border transition-all",
-                        value === swatch
-                          ? "border-[var(--sage)] outline outline-2 outline-[var(--sage)] outline-offset-2"
-                          : "border-[var(--border)]",
-                      )}
-                      style={{ backgroundColor: value }}
-                    />
-                  ))}
-                  <button
-                    type="button"
-                    onClick={openColorPicker}
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-semibold text-foreground"
-                  >
-                    Add custom
-                  </button>
-                </div>
-                <input
-                  ref={colorInputRef}
-                  type="color"
-                  value={swatch}
-                  onChange={handleCustomColor}
-                  className="hidden"
-                />
-              </div>
-              <p className="text-xs text-foreground/70">Choose a preset swatch or add a custom color for this product.</p>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Stock quantity</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={stockQtyInput}
-                onChange={(event) => setStockQtyInput(event.target.value.replace(/[^0-9]/g, ""))}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3 font-sans text-foreground outline-none focus:border-[var(--sage)]"
-              />
-              {Number(stockQtyInput) > 0 && Number(stockQtyInput) <= 5 ? (
-                <Alert variant="warning" className="text-sm">
-                  Low stock warning at 5 units.
-                </Alert>
-              ) : (
-                <div className="flex items-center gap-2 rounded-2xl border border-[#5eead4] bg-[#dafaf6] px-4 py-3 text-xs text-[#0f766e]">
-                  <span aria-hidden>ℹ️</span>
-                  <span>Low stock warning at 5 units</span>
-                </div>
-              )}
-              <p className="text-xs text-foreground/70">Track available inventory and adjust stock levels before publishing.</p>
-            </div>
-
-            <div className="md:col-span-2 flex flex-col gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-foreground">Active</p>
-                  <p className="text-xs text-foreground/70">
-                    {isActive ? "Active — product is visible in shop" : "Inactive hidden from shop"}
-                  </p>
-                </div>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(event) => setIsActive(event.target.checked)}
-                    className="sr-only"
-                  />
-                  <span
-                    className={cn(
-                      "h-6 w-11 rounded-full transition-colors",
-                      isActive ? "bg-[var(--sage)]" : "bg-[var(--border)]",
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "absolute left-1 top-1 h-4 w-4 rounded-full bg-[var(--card)] shadow-soft transition-transform",
-                      isActive ? "translate-x-5" : "translate-x-0",
-                    )}
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-soft">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-[var(--foreground)]/70">Visibility & images</p>
-              <h2 className="mt-2 text-lg font-semibold text-foreground">Upload product photography</h2>
-            </div>
-          </div>
-
-          <div
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={cn(
-              "rounded-3xl border border-dashed px-6 py-10 text-center transition",
-              isDragActive
-                ? "border-[var(--sage)] bg-[var(--sage)]/10"
-                : "border-[var(--border)] bg-[var(--background)]",
-            )}
-          >
-            <p className="text-sm font-semibold text-foreground">Drag and drop images here</p>
-            <p className="mt-2 text-sm text-foreground/70">or use the button below to choose files.</p>
-            <button
-              type="button"
-              onClick={openFileChooser}
-              className="mt-5 inline-flex items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] px-5 py-3 text-sm font-semibold text-foreground shadow-soft hover:bg-[var(--sage)]/5"
-            >
-              Choose files
-            </button>
-            <p className="mt-4 text-xs text-foreground/70">JPG, PNG, WEBP, GIF · max 5MB · up to 8 images</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              multiple
-              onChange={(event) => handleImageFiles(event.target.files)}
-              className="hidden"
-            />
-          </div>
-
-          {uploading && (
-            <div className="rounded-3xl bg-[var(--background)] p-3 text-sm text-foreground">
-              Uploading images... {uploadProgress}%
-            </div>
-          )}
-
-          {uploadError && (
-            <p className="text-sm text-[#f87171]">{uploadError}</p>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {images.length > 0 && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {images.map((src) => (
-              <div key={src} className="group relative overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--card)] shadow-soft">
-                <img src={src} alt="Product preview" className="h-40 w-full object-cover" />
+              <div key={src} className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white">
+                <img src={src} alt="Product preview" className="h-36 w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => removeImage(src)}
-                  className="absolute right-3 top-3 rounded-full bg-background/90 px-2 py-1 text-xs font-semibold text-foreground shadow-card"
+                  className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100"
                 >
                   ✕
                 </button>
               </div>
             ))}
           </div>
-        </section>
+        )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-[var(--border)] bg-[var(--background)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          type="button"
-          onClick={handleDiscard}
-          className="inline-flex items-center justify-center rounded-full border border-[#ef4444] bg-[#fef2f2] px-6 py-3 text-sm font-semibold text-[#b91c1c] transition hover:bg-[#fee2e2]"
-        >
-          Discard
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-6 py-3 text-sm font-semibold text-[var(--foreground)] shadow-soft transition hover:bg-[var(--sage-deep)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
+      {/* Bottom Actions */}
+      <div className="flex items-center justify-between gap-3 border-t pt-5">
+        <Button type="button" variant="outline" onClick={handleDiscard} className="text-red-600 border-red-200 hover:bg-red-50">
+          Discard changes
+        </Button>
+        <Button onClick={handleSubmit} disabled={isLoading}>
           {isLoading ? "Saving..." : "Save product"}
-        </button>
+        </Button>
       </div>
     </div>
   );

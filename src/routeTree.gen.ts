@@ -28,8 +28,11 @@ import { Route as AdminWebsiteSettingsRouteImport } from './routes/admin/website
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
+import { Route as AdminCustomersIndexRouteImport } from './routes/admin/customers/index'
 import { Route as AdminProductsNewRouteImport } from './routes/admin/products/new'
 import { Route as AdminProductsIdRouteImport } from './routes/admin/products/$id'
+import { Route as AdminOrdersTrackingRouteImport } from './routes/admin/orders/tracking'
+import { Route as AdminOrdersReturnsRouteImport } from './routes/admin/orders/returns'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -127,6 +130,11 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   path: '/orders/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCustomersIndexRoute = AdminCustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminProductsNewRoute = AdminProductsNewRouteImport.update({
   id: '/products/new',
   path: '/products/new',
@@ -135,6 +143,16 @@ const AdminProductsNewRoute = AdminProductsNewRouteImport.update({
 const AdminProductsIdRoute = AdminProductsIdRouteImport.update({
   id: '/products/$id',
   path: '/products/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrdersTrackingRoute = AdminOrdersTrackingRouteImport.update({
+  id: '/orders/tracking',
+  path: '/orders/tracking',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrdersReturnsRoute = AdminOrdersReturnsRouteImport.update({
+  id: '/orders/returns',
+  path: '/orders/returns',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
@@ -162,8 +180,11 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/shop/': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
+  '/admin/orders/returns': typeof AdminOrdersReturnsRoute
+  '/admin/orders/tracking': typeof AdminOrdersTrackingRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/customers/': typeof AdminCustomersIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -184,8 +205,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/shop': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
+  '/admin/orders/returns': typeof AdminOrdersReturnsRoute
+  '/admin/orders/tracking': typeof AdminOrdersTrackingRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/customers': typeof AdminCustomersIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/products': typeof AdminProductsIndexRoute
 }
@@ -209,8 +233,11 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/shop/': typeof ShopIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
+  '/admin/orders/returns': typeof AdminOrdersReturnsRoute
+  '/admin/orders/tracking': typeof AdminOrdersTrackingRoute
   '/admin/products/$id': typeof AdminProductsIdRoute
   '/admin/products/new': typeof AdminProductsNewRoute
+  '/admin/customers/': typeof AdminCustomersIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -235,8 +262,11 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/shop/'
     | '/admin/orders/$id'
+    | '/admin/orders/returns'
+    | '/admin/orders/tracking'
     | '/admin/products/$id'
     | '/admin/products/new'
+    | '/admin/customers/'
     | '/admin/orders/'
     | '/admin/products/'
   fileRoutesByTo: FileRoutesByTo
@@ -257,8 +287,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/shop'
     | '/admin/orders/$id'
+    | '/admin/orders/returns'
+    | '/admin/orders/tracking'
     | '/admin/products/$id'
     | '/admin/products/new'
+    | '/admin/customers'
     | '/admin/orders'
     | '/admin/products'
   id:
@@ -281,8 +314,11 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/shop/'
     | '/admin/orders/$id'
+    | '/admin/orders/returns'
+    | '/admin/orders/tracking'
     | '/admin/products/$id'
     | '/admin/products/new'
+    | '/admin/customers/'
     | '/admin/orders/'
     | '/admin/products/'
   fileRoutesById: FileRoutesById
@@ -437,6 +473,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/customers/': {
+      id: '/admin/customers/'
+      path: '/customers'
+      fullPath: '/admin/customers/'
+      preLoaderRoute: typeof AdminCustomersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/products/new': {
       id: '/admin/products/new'
       path: '/products/new'
@@ -449,6 +492,20 @@ declare module '@tanstack/react-router' {
       path: '/products/$id'
       fullPath: '/admin/products/$id'
       preLoaderRoute: typeof AdminProductsIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders/tracking': {
+      id: '/admin/orders/tracking'
+      path: '/orders/tracking'
+      fullPath: '/admin/orders/tracking'
+      preLoaderRoute: typeof AdminOrdersTrackingRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders/returns': {
+      id: '/admin/orders/returns'
+      path: '/orders/returns'
+      fullPath: '/admin/orders/returns'
+      preLoaderRoute: typeof AdminOrdersReturnsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/orders/$id': {
@@ -466,8 +523,11 @@ interface AdminRouteChildren {
   AdminWebsiteSettingsRoute: typeof AdminWebsiteSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
+  AdminOrdersReturnsRoute: typeof AdminOrdersReturnsRoute
+  AdminOrdersTrackingRoute: typeof AdminOrdersTrackingRoute
   AdminProductsIdRoute: typeof AdminProductsIdRoute
   AdminProductsNewRoute: typeof AdminProductsNewRoute
+  AdminCustomersIndexRoute: typeof AdminCustomersIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   AdminProductsIndexRoute: typeof AdminProductsIndexRoute
 }
@@ -477,8 +537,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminWebsiteSettingsRoute: AdminWebsiteSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
+  AdminOrdersReturnsRoute: AdminOrdersReturnsRoute,
+  AdminOrdersTrackingRoute: AdminOrdersTrackingRoute,
   AdminProductsIdRoute: AdminProductsIdRoute,
   AdminProductsNewRoute: AdminProductsNewRoute,
+  AdminCustomersIndexRoute: AdminCustomersIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminProductsIndexRoute: AdminProductsIndexRoute,
 }
