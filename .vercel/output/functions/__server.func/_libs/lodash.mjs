@@ -3009,6 +3009,34 @@ function requireLast() {
 }
 var lastExports = requireLast();
 const last = /* @__PURE__ */ getDefaultExportFromCjs(lastExports);
+var maxBy_1;
+var hasRequiredMaxBy;
+function requireMaxBy() {
+  if (hasRequiredMaxBy) return maxBy_1;
+  hasRequiredMaxBy = 1;
+  var baseExtremum = require_baseExtremum(), baseGt = require_baseGt(), baseIteratee = require_baseIteratee();
+  function maxBy2(array, iteratee) {
+    return array && array.length ? baseExtremum(array, baseIteratee(iteratee, 2), baseGt) : void 0;
+  }
+  maxBy_1 = maxBy2;
+  return maxBy_1;
+}
+var maxByExports = requireMaxBy();
+const maxBy = /* @__PURE__ */ getDefaultExportFromCjs(maxByExports);
+var minBy_1;
+var hasRequiredMinBy;
+function requireMinBy() {
+  if (hasRequiredMinBy) return minBy_1;
+  hasRequiredMinBy = 1;
+  var baseExtremum = require_baseExtremum(), baseIteratee = require_baseIteratee(), baseLt = require_baseLt();
+  function minBy2(array, iteratee) {
+    return array && array.length ? baseExtremum(array, baseIteratee(iteratee, 2), baseLt) : void 0;
+  }
+  minBy_1 = minBy2;
+  return minBy_1;
+}
+var minByExports = requireMinBy();
+const minBy = /* @__PURE__ */ getDefaultExportFromCjs(minByExports);
 var _getPrototype;
 var hasRequired_getPrototype;
 function require_getPrototype() {
@@ -3348,15 +3376,17 @@ export {
   isEqual as k,
   last as l,
   min as m,
-  isPlainObject as n,
-  isBoolean as o,
-  every as p,
-  mapValues as q,
+  maxBy as n,
+  minBy as o,
+  isPlainObject as p,
+  isBoolean as q,
   range as r,
   sortBy as s,
   throttle as t,
   upperFirst as u,
-  memoize as v,
-  find as w,
-  some as x
+  every as v,
+  mapValues as w,
+  memoize as x,
+  find as y,
+  some as z
 };

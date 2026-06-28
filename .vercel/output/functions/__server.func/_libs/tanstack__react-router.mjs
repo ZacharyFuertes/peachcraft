@@ -781,11 +781,18 @@ function RouterProvider({ router, ...rest }) {
   });
 }
 function useRouterState(opts) {
-  const contextRouter = useRouter({ warn: opts?.router === void 0 });
-  const router = opts?.router || contextRouter;
+  const contextRouter = useRouter();
+  const router = contextRouter;
   {
     const state = router.stores.__store.get();
-    return opts?.select ? opts.select(state) : state;
+    return state;
+  }
+}
+function useLocation(opts) {
+  const router = useRouter();
+  {
+    const location = router.stores.location.get();
+    return location;
   }
 }
 var noopScriptHandler = () => {
@@ -1183,6 +1190,7 @@ export {
   useRouterState as d,
   useNavigate as e,
   useSearch as f,
+  useLocation as g,
   lazyRouteComponent as l,
   renderRouterToStream as r,
   useRouter as u

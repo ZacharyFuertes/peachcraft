@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSupabaseServer } from "@/lib/supabase";
+import { verifyAdmin } from "./admin-auth";
 
 export type CustomerRow = {
   id: string;
@@ -14,6 +15,7 @@ export type CustomerRow = {
 };
 
 export const getCustomers = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const { data: profiles, error } = await supabase

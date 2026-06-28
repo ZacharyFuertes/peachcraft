@@ -37,6 +37,44 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   });
 }
 
+function getSecurityHeaders(): Record<string, string> {
+  const supabaseUrl = process.env.SUPABASE_URL ?? "";
+  const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : "https://xbfimdcxrombepkthigx.supabase.co";
+  const supabaseWss = supabaseOrigin.replace("https://", "wss://");
+
+  const csp = [
+    "default-src 'self'",
+    `connect-src 'self' ${supabaseOrigin} ${supabaseWss}/realtime/v1 https://api.cloudflare.com https://api.ipify.org https://cdn.jsdelivr.net`,
+    "script-src 'self' 'unsafe-inline' blob: https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    `img-src 'self' data: blob: ${supabaseOrigin}`,
+    "worker-src 'self' blob: https://cdn.jsdelivr.net",
+    "form-action 'self'",
+    "base-uri 'self'",
+  ].join("; ");
+
+  return {
+    "Content-Security-Policy": csp,
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+  };
+}
+
+function withSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(getSecurityHeaders())) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -57,7 +95,6 @@ export default {
           try {
             const encodedFilePath = encodeR2ObjectKey(filePath);
             const r2Url = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedFilePath}`;
-            console.log("[Image Proxy] Fetching from R2:", r2Url);
 
             const r2Response = await fetch(r2Url, {
               method: "GET",
@@ -70,36 +107,35 @@ export default {
               const buffer = await r2Response.arrayBuffer();
               const contentType = r2Response.headers.get("content-type") || "image/jpeg";
 
-              return new Response(buffer, {
+              return withSecurityHeaders(new Response(buffer, {
                 status: 200,
                 headers: {
                   "Content-Type": contentType,
                   "Cache-Control": "public, max-age=31536000",
                   "Access-Control-Allow-Origin": "*",
                 },
-              });
+              }));
             } else {
-              console.warn("[Image Proxy] R2 returned:", r2Response.status);
-              return new Response("Image not found", { status: 404 });
+              return withSecurityHeaders(new Response("Image not found", { status: 404 }));
             }
           } catch (error) {
             console.error("[Image Proxy] Error fetching from R2:", error);
-            return new Response("Error loading image", { status: 500 });
+            return withSecurityHeaders(new Response("Error loading image", { status: 500 }));
           }
         }
 
-        return new Response("R2 not configured", { status: 500 });
+        return withSecurityHeaders(new Response("R2 not configured", { status: 500 }));
       }
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      return withSecurityHeaders(new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      }));
     }
   },
 };

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
+import { verifyAdmin } from "./admin-auth";
 
 export type ProductRow = {
   id: string;
@@ -110,31 +111,6 @@ function formatDateRange(start: Date, end: Date) {
   };
 }
 
-async function verifyAdmin(request?: Request, accessToken?: string) {
-  const supabase = getSupabaseServer(request, { authOnly: true });
-
-  let user = null;
-  let error = null;
-
-  if (accessToken) {
-    const tokenResult = await (supabase.auth as any).getUser(accessToken);
-    user = tokenResult?.data?.user ?? null;
-    error = tokenResult?.error ?? null;
-  }
-
-  if (!user) {
-    const cookieResult = await supabase.auth.getUser();
-    user = cookieResult.data?.user ?? null;
-    error = cookieResult.error ?? error;
-  }
-
-  if (error || !user || user.email !== process.env.ADMIN_EMAIL) {
-    throw new Error("Unauthorized");
-  }
-
-  return user;
-}
-
 export const getFeaturedProducts = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
@@ -167,6 +143,7 @@ export const getAllProducts = createServerFn({ method: "GET" }).handler(async ()
 });
 
 export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const today = new Date();
@@ -434,6 +411,7 @@ export const createOrder = createServerFn({ method: "POST" })
   });
 
 export const getAdminProducts = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from("products")
@@ -682,6 +660,7 @@ export const updateProduct = createServerFn({ method: "POST" })
   });
 
 export const getOrdersList = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data: orders, error } = await supabase
     .from("orders")
@@ -716,6 +695,7 @@ export const getOrdersList = createServerFn({ method: "GET" }).handler(async () 
 export const getOrderDetails = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
+    await verifyAdmin();
     const supabase = getSupabaseServer();
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -826,6 +806,7 @@ export type AnalyticsData = {
 };
 
 export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const now = new Date();
@@ -1642,6 +1623,7 @@ export const verifyEmail = createServerFn({ method: "POST" })
 export const checkEmailVerification = createServerFn({ method: "POST" })
   .inputValidator(z.object({ userId: z.string().uuid() }))
   .handler(async ({ data }) => {
+    await verifyAdmin();
     const supabase = getSupabaseServer();
 
     const { data: profile, error } = await supabase

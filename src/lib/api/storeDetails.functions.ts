@@ -1,31 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
-
-async function verifyAdmin(request?: Request, accessToken?: string) {
-  const supabase = getSupabaseServer(request, { authOnly: true });
-
-  let user = null;
-  let error = null;
-
-  if (accessToken) {
-    const tokenResult = await (supabase.auth as any).getUser(accessToken);
-    user = tokenResult?.data?.user ?? null;
-    error = tokenResult?.error ?? null;
-  }
-
-  if (!user) {
-    const cookieResult = await supabase.auth.getUser();
-    user = cookieResult.data?.user ?? null;
-    error = cookieResult.error ?? error;
-  }
-
-  if (error || !user || user.email !== process.env.ADMIN_EMAIL) {
-    throw new Error("Unauthorized");
-  }
-
-  return user;
-}
+import { verifyAdmin } from "./admin-auth";
 
 export type StoreDetails = {
   store_name: string;

@@ -106,20 +106,33 @@ export function getSupabaseServer(request?: Request, options?: SupabaseServerOpt
     }
   }
 
-  return createClient(SUPABASE_URL_SERVER, key, {
-    global: {
-      headers: {
-        cookie: request?.headers.get("cookie") ?? "",
+  // When authOnly, use createServerClient from @supabase/ssr so it properly
+  // reads the auth cookie format that createBrowserClient writes on the client.
+  if (authOnly) {
+    return createServerClient(SUPABASE_URL_SERVER, key, {
+      cookies: {
+        getAll() {
+          const cookie = request?.headers.get("cookie") ?? "";
+          if (!cookie) return [];
+          return cookie.split("; ").filter(Boolean).map((c) => {
+            const eq = c.indexOf("=");
+            if (eq === -1) return { name: c.trim(), value: "" };
+            return { name: c.slice(0, eq).trim(), value: c.slice(eq + 1).trim() };
+          });
+        },
+        setAll() {
+          // Auth-only — no need to write cookies
+        },
       },
-    },
-    auth: authOnly
-      ? {
-          autoRefreshToken: false,
-          persistSession: false,
-          detectSessionInUrl: false,
-        }
-      : undefined,
-  });
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+
+  return createClient(SUPABASE_URL_SERVER, key);
 }
 
 export async function seedProductsFromStatic(products: Product[]) {

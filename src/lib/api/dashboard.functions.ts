@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getSupabaseServer } from "../supabase";
+import { verifyAdmin } from "./admin-auth";
 
 export type DashboardActivity = {
   type: "new_order" | "low_stock" | "new_user" | "payment";
@@ -41,6 +42,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export const getDashboardData = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const now = new Date();
