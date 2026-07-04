@@ -2,12 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Product } from "./supabase";
 import { getSupabaseClient } from "./supabase";
 import {
-  addCartItem,
-  clearCartItems,
-  getCartItemsForUser,
-  mergeCartItems,
-  removeCartItem as removeCartItemFromServer,
-  updateCartItemQuantity,
+  saveCartForUser,
+  getCartForUser,
 } from "@/lib/api/supabase.functions";
 
 const CART_STORAGE_KEY = "peachcraft-cart";
@@ -80,7 +76,7 @@ function makePersistableCartItem(item: CartItem): PersistableCartItem {
 }
 
 async function fetchServerCartItems(): Promise<CartItem[]> {
-  const response = await getCartItemsForUser();
+  const response = await getCartForUser({ data: {} });
   return Array.isArray((response as ServerCartResponse).items)
     ? (response as ServerCartResponse).items
     : [];
@@ -167,7 +163,7 @@ export function useCart() {
       const serverItems = localItems.length
         ? await (async () => {
             console.log("[Cart] Sending local items to server for merge");
-            await mergeCartItems({ data: { items: localItems.map(makePersistableCartItem) } });
+            await saveCartForUser({ data: { items: localItems.map(makePersistableCartItem) } });
             return fetchServerCartItems();
           })()
         : await fetchServerCartItems();
@@ -190,8 +186,18 @@ export function useCart() {
           return;
         }
 
+        const currentItems = readCartStorage().filter(
+          (ci) => ci.product_id !== item.product_id,
+        );
         console.log("[Cart] Adding item to server:", item);
-        await addCartItem({ data: item });
+        await saveCartForUser({
+          data: {
+            items: [
+              ...currentItems.map(makePersistableCartItem),
+              item,
+            ],
+          },
+        });
         console.log("[Cart] Item added successfully, refreshing cart");
         await refreshServerCart();
       } catch (error) {
@@ -202,7 +208,7 @@ export function useCart() {
   );
 
   const syncUpdateCartItem = useCallback(
-    async (itemCartId: string, qty: number) => {
+    async (_itemCartId: string, _qty: number) => {
       try {
         const supabase = getSupabaseClient();
         const { data: authData } = await supabase.auth.getUser();
@@ -211,19 +217,20 @@ export function useCart() {
           return;
         }
 
-        console.log("[Cart] Updating item on server:", { itemCartId, qty });
-        await updateCartItemQuantity({ data: { item_cart_id: itemCartId, qty } });
-        console.log("[Cart] Item updated successfully, refreshing cart");
+        const currentItems = readCartStorage();
+        console.log("[Cart] Syncing cart to server after update");
+        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem) } });
+        console.log("[Cart] Cart synced successfully");
         await refreshServerCart();
       } catch (error) {
-        console.error("[Cart] Failed to sync update item:", error);
+        console.error("[Cart] Failed to sync after update:", error);
       }
     },
     [refreshServerCart],
   );
 
   const syncRemoveCartItem = useCallback(
-    async (itemCartId: string) => {
+    async (_itemCartId: string) => {
       try {
         const supabase = getSupabaseClient();
         const { data: authData } = await supabase.auth.getUser();
@@ -232,12 +239,13 @@ export function useCart() {
           return;
         }
 
-        console.log("[Cart] Removing item from server:", itemCartId);
-        await removeCartItemFromServer({ data: { item_cart_id: itemCartId } });
-        console.log("[Cart] Item removed successfully, refreshing cart");
+        const currentItems = readCartStorage();
+        console.log("[Cart] Syncing cart to server after removal");
+        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem) } });
+        console.log("[Cart] Cart synced after removal successfully");
         await refreshServerCart();
       } catch (error) {
-        console.error("[Cart] Failed to sync remove item:", error);
+        console.error("[Cart] Failed to sync after removal:", error);
       }
     },
     [refreshServerCart],
@@ -253,7 +261,7 @@ export function useCart() {
       }
 
       console.log("[Cart] Clearing cart on server");
-      await clearCartItems();
+      await saveCartForUser({ data: { items: [] } });
       console.log("[Cart] Cart cleared successfully");
       writeCartStorage([]);
       setItems([]);

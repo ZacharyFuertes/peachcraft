@@ -127,7 +127,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <CartToastProvider>
         {!hideShell && <SiteHeader />}
-        <main id="main">
+        {/* pt offsets the fixed navbar: mobile h-14+py-3=80px, desktop h-16+py-3=88px */}
+        <main id="main" className={!hideShell ? "pt-20 lg:pt-[88px]" : ""}>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>

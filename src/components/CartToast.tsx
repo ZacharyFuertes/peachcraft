@@ -6,8 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { ShoppingBag, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/lib/cart";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,9 +34,9 @@ export function useCartToast() {
   return ctx;
 }
 
-// ─── Individual toast card ────────────────────────────────────────────────────
+// ─── Cart Panel ───────────────────────────────────────────────────────────────
 
-function ToastCard({
+function CartPanel({
   item,
   onDismiss,
 }: {
@@ -43,8 +45,10 @@ function ToastCard({
 }) {
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const navigate = useNavigate();
+  const { itemCount } = useCart();
 
-  // Slide in on mount
+  // Animate in on mount
   useEffect(() => {
     const t = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(t);
@@ -52,72 +56,195 @@ function ToastCard({
 
   const dismiss = useCallback(() => {
     setLeaving(true);
-    setTimeout(() => onDismiss(item.id), 350);
+    setTimeout(() => onDismiss(item.id), 300);
   }, [item.id, onDismiss]);
 
-  // Auto-dismiss after 3.5 s
+  // Auto-dismiss after 5s
   useEffect(() => {
-    const timer = setTimeout(dismiss, 3500);
+    const timer = setTimeout(dismiss, 5000);
     return () => clearTimeout(timer);
   }, [dismiss]);
 
+  const handleViewCart = () => {
+    dismiss();
+    navigate({ to: "/cart" });
+  };
+
+  const handleCheckout = () => {
+    dismiss();
+    navigate({ to: "/cart" });
+  };
+
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className={cn(
-        "flex items-center gap-3 w-80 max-w-[calc(100vw-2rem)]",
-        "rounded-2xl bg-card shadow-[0_8px_32px_-8px_rgba(0,0,0,0.18)] border border-border/60",
-        "p-3 pr-4 backdrop-blur-sm",
-        "transition-all duration-350 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-        visible && !leaving
-          ? "opacity-100 translate-x-0 scale-100"
-          : "opacity-0 translate-x-8 scale-95",
-      )}
-    >
-      {/* Product thumbnail or bag icon */}
-      <div className="relative shrink-0">
-        {item.productImage ? (
-          <img
-            src={item.productImage}
-            alt={item.productName}
-            className="w-14 h-14 rounded-xl object-cover border border-border/40"
-          />
-        ) : (
-          <div className="w-14 h-14 rounded-xl bg-blush/30 grid place-items-center">
-            <ShoppingBag className="w-6 h-6 text-primary" />
-          </div>
+    <>
+      {/* ── MOBILE: Full-width bar below navbar ── */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={cn(
+          "lg:hidden w-full bg-sage-deep text-background",
+          "border-b border-white/10",
+          "transition-all duration-300 ease-out overflow-hidden",
+          visible && !leaving
+            ? "opacity-100 max-h-[400px]"
+            : "opacity-0 max-h-0",
         )}
-        {/* Green check badge */}
-        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary grid place-items-center shadow-md">
-          <Check className="w-3 h-3 text-primary-foreground stroke-[3]" />
-        </span>
-      </div>
-
-      {/* Text */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-widest text-muted-foreground leading-none mb-1">
-          Added to cart
-        </p>
-        <p className="text-sm font-semibold text-foreground truncate leading-snug">
-          {item.productName}
-        </p>
-        {item.qty > 1 && (
-          <p className="text-xs text-muted-foreground mt-0.5">Qty: {item.qty}</p>
-        )}
-      </div>
-
-      {/* Dismiss */}
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss notification"
-        className="shrink-0 grid place-items-center w-7 h-7 rounded-full hover:bg-accent transition-colors"
       >
-        <X className="w-3.5 h-3.5 text-muted-foreground" />
-      </button>
-    </div>
+        <div className="px-4 py-4">
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-background" strokeWidth={3} />
+              <span className="text-sm font-semibold text-background">
+                Item added to your cart
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Dismiss"
+              className="text-background/60 hover:text-background transition-colors p-1"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Product row */}
+          <div className="flex items-center gap-4 mb-5">
+            {item.productImage ? (
+              <img
+                src={item.productImage}
+                alt={item.productName}
+                className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-lg bg-white/10 grid place-items-center shrink-0">
+                <ShoppingBag className="w-6 h-6 text-background/60" />
+              </div>
+            )}
+            <p className="text-base font-bold text-background leading-snug">
+              {item.productName}
+              {item.qty > 1 && (
+                <span className="block text-sm font-normal text-background/70 mt-0.5">
+                  Qty: {item.qty}
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleViewCart}
+              className="w-full py-3 rounded-full border border-background/80 text-background text-sm font-semibold hover:bg-white/10 transition-colors"
+            >
+              View my cart ({itemCount})
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              className="w-full py-3 rounded-full bg-background text-foreground text-sm font-semibold hover:bg-background/90 transition-colors"
+            >
+              Check out
+            </button>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="w-full py-2 text-sm font-medium text-background underline underline-offset-2 hover:text-background/80 transition-colors text-center"
+            >
+              Continue shopping
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DESKTOP: Floating compact dropdown on the right ── */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className={cn(
+          "hidden lg:block",
+          "w-[300px] bg-sage-deep text-background",
+          "rounded-2xl shadow-[0_16px_48px_-8px_rgba(0,0,0,0.45)] border border-white/10",
+          "overflow-hidden",
+          "transition-all duration-300 ease-out",
+          visible && !leaving
+            ? "opacity-100 translate-y-0 scale-100"
+            : "opacity-0 -translate-y-3 scale-95 pointer-events-none",
+        )}
+      >
+        <div className="px-5 py-4">
+          {/* Header row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-background" strokeWidth={3} />
+              <span className="text-sm font-semibold text-background">
+                Item added to your cart
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Dismiss"
+              className="text-background/60 hover:text-background transition-colors p-1 -mr-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Product row */}
+          <div className="flex items-center gap-3 mb-5">
+            {item.productImage ? (
+              <img
+                src={item.productImage}
+                alt={item.productName}
+                className="w-14 h-14 rounded-lg object-cover shrink-0 border border-white/10"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-lg bg-white/10 grid place-items-center shrink-0">
+                <ShoppingBag className="w-5 h-5 text-background/60" />
+              </div>
+            )}
+            <p className="text-sm font-bold text-background leading-snug">
+              {item.productName}
+              {item.qty > 1 && (
+                <span className="block text-xs font-normal text-background/70 mt-0.5">
+                  Qty: {item.qty}
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleViewCart}
+              className="w-full py-2.5 rounded-full border border-background/80 text-background text-sm font-semibold hover:bg-white/10 transition-colors"
+            >
+              View my cart ({itemCount})
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              className="w-full py-2.5 rounded-full bg-background text-foreground text-sm font-semibold hover:bg-background/90 transition-colors"
+            >
+              Check out
+            </button>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="w-full py-1.5 text-sm font-medium text-background underline underline-offset-2 hover:text-background/80 transition-colors text-center"
+            >
+              Continue shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -129,7 +256,8 @@ export function CartToastProvider({ children }: { children: React.ReactNode }) {
 
   const notify = useCallback((item: Omit<CartToastItem, "id">) => {
     const id = `cart-toast-${++counterRef.current}`;
-    setToasts((prev) => [...prev, { ...item, id }]);
+    // Only show one at a time — replace previous
+    setToasts([{ ...item, id }]);
   }, []);
 
   const dismiss = useCallback((id: string) => {
@@ -140,14 +268,28 @@ export function CartToastProvider({ children }: { children: React.ReactNode }) {
     <CartToastContext.Provider value={{ notify }}>
       {children}
 
-      {/* Toast stack — bottom-right */}
+      {/* ── Mobile wrapper: full-width bar just below sticky header ── */}
+      {/* Header height: py-3 (24px) + h-14 (56px) = 80px = top-20 */}
       <div
         aria-label="Cart notifications"
-        className="fixed bottom-6 right-6 z-[200] flex flex-col gap-2 items-end pointer-events-none"
+        className="lg:hidden fixed top-20 left-0 right-0 z-40 pointer-events-none"
       >
         {toasts.map((t) => (
           <div key={t.id} className="pointer-events-auto">
-            <ToastCard item={t} onDismiss={dismiss} />
+            <CartPanel item={t} onDismiss={dismiss} />
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop wrapper: floating dropdown on the right side below header ── */}
+      {/* Header height: py-3 (24px) + h-16 (64px) = 88px */}
+      <div
+        aria-label="Cart notifications"
+        className="hidden lg:block fixed top-[88px] right-6 z-40 pointer-events-none"
+      >
+        {toasts.map((t) => (
+          <div key={t.id} className="pointer-events-auto">
+            <CartPanel item={t} onDismiss={dismiss} />
           </div>
         ))}
       </div>

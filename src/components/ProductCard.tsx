@@ -34,35 +34,36 @@ export function ProductCard({ product }: { product: Product }) {
     <>
     <article
       onClick={() => navigate({ to: `/shop/${product.id}` })}
-      className={cn(
-        "group relative cursor-pointer",
-        // Mobile: borderless flat card; Desktop: elevated with rounded corners
-        "rounded-[1rem] sm:rounded-[1.75rem] border border-border/70 overflow-hidden",
-        "bg-white transition-all duration-300",
-        "hover:-translate-y-1 sm:hover:-translate-y-2 hover:shadow-card sm:hover:shadow-soft",
-        "shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] sm:shadow-card",
-      )}
+      className="custom-product-card group"
     >
       {/* ─── Image area ──────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-cream rounded-t-[1rem] sm:rounded-t-[1.75rem]">
+      <div className="relative overflow-hidden bg-cream">
         {imageSrc ? (
-          <div className="w-full aspect-[1/1] sm:aspect-[4/5] overflow-hidden bg-cream">
+          <div className="custom-card-media">
             <img
               src={imageSrc}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="custom-card-img"
               loading="lazy"
             />
+            {product.images?.[1] && (
+              <img
+                src={product.images[1]}
+                alt=""
+                className="custom-card-img"
+                loading="lazy"
+              />
+            )}
           </div>
         ) : (
-          <div className="w-full aspect-square bg-cream flex items-center justify-center">
+          <div className="custom-card-media flex items-center justify-center">
             <span className="text-foreground/20 text-4xl">🎂</span>
           </div>
         )}
 
         {/* Sold out badge */}
         {product.soldOut && (
-          <div className="absolute left-2.5 bottom-2.5 sm:left-3 sm:bottom-3">
+          <div className="absolute left-2.5 bottom-2.5 sm:left-3 sm:bottom-3 z-10">
             <span className="px-2 py-0.5 rounded-md bg-foreground/90 backdrop-blur text-[9px] font-bold uppercase tracking-wider text-background shadow-card select-none">
               Sold out
             </span>
@@ -78,16 +79,16 @@ export function ProductCard({ product }: { product: Product }) {
           }}
           aria-label={liked ? "Remove from wishlist" : "Add to wishlist"}
           aria-pressed={liked}
-          className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 grid place-items-center w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-card hover:scale-110 active:scale-95 transition-transform"
+          className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 z-10 grid place-items-center w-8 h-8 rounded-full bg-white/90 backdrop-blur shadow-card hover:scale-110 active:scale-95 transition-transform"
         >
           <Heart className={cn("w-3.5 h-3.5 transition-colors", liked ? "fill-blush text-blush" : "text-foreground/70")} />
         </button>
       </div>
 
       {/* ─── Info area ───────────────────────────────────────────────── */}
-      <div className="p-3 sm:p-5 space-y-0.5 sm:space-y-1">
+      <div className="custom-card-info">
         {/* Name */}
-        <h3 className="card__heading">
+        <h3 className="custom-card-heading">
           <Link
             to="/shop/$id"
             params={{ id: product.id }}
@@ -95,25 +96,92 @@ export function ProductCard({ product }: { product: Product }) {
             className="full-unstyled-link"
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="line-clamp-2" style={{ fontFamily: "'Quicksand', sans-serif", fontSize: "15px", lineHeight: "19.5px", fontWeight: 500, letterSpacing: "0.6px", color: "#000000", opacity: 0.85 }}>
+            <span className="line-clamp-2">
               {product.name}{product.tag ? ` (${product.tag})` : ''}
             </span>
           </Link>
         </h3>
 
         {/* Price */}
-        <p className="card__price" style={{ fontFamily: "'Quicksand', sans-serif", fontSize: "15px", lineHeight: "1.5", fontWeight: 500, color: "#000000" }}>
+        <p className="custom-card-price">
           ₱{product.price.toLocaleString("en-PH")} PHP
         </p>
       </div>
     </article>
 
     <style>{`
-      .card__heading {
+      .custom-product-card {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 4px 5px rgba(0, 0, 0, 0.15);
+        background-color: #ffffff;
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .custom-card-media {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        background-color: #f9f2e8;
+        position: relative;
+      }
+      .custom-card-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: opacity 500ms ease, transform 500ms ease;
+      }
+      .custom-card-media img:first-child:not(:only-child) {
+        position: relative;
+        z-index: 1;
+      }
+      .custom-card-media img + img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        opacity: 0;
+      }
+      .custom-product-card:hover .custom-card-img {
+        transform: scale(1.03);
+      }
+      .custom-product-card:hover .custom-card-media img:first-child:not(:only-child) {
+        opacity: 0;
+      }
+      .custom-product-card:hover .custom-card-media img + img {
+        opacity: 1;
+      }
+      .custom-card-info {
+        padding: 13px 10px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+      }
+      @media (min-width: 750px) {
+        .custom-card-info {
+          padding: 17px 10px;
+        }
+      }
+      .custom-card-heading {
         font-family: 'Quicksand', sans-serif;
+        font-weight: 700;
+        font-size: 14.4px;
+        line-height: 1.25;
+        color: #000000;
         margin: 0;
       }
-      .card__heading .full-unstyled-link {
+      @media (min-width: 750px) {
+        .custom-card-heading {
+          font-size: 15.6px;
+        }
+      }
+      .custom-card-heading .full-unstyled-link {
         text-decoration: none;
         color: currentColor;
         display: block;
@@ -121,27 +189,29 @@ export function ProductCard({ product }: { product: Product }) {
         text-rendering: optimizeLegibility;
         font-synthesis: none;
       }
-      .card__heading .full-unstyled-link::after {
+      .custom-card-heading .full-unstyled-link::after {
         content: "";
         position: absolute;
         inset: 0;
         z-index: 1;
       }
-      .card__heading .full-unstyled-link:focus {
+      .custom-card-heading .full-unstyled-link:focus {
         outline: none;
         box-shadow: none;
       }
-      article:hover .card__heading .full-unstyled-link {
+      .custom-product-card:hover .custom-card-heading .full-unstyled-link {
         text-decoration: underline;
         text-underline-offset: 0.3rem;
       }
-      @media (min-width: 990px) {
-        .card__heading .full-unstyled-link {
-          font-size: 15px;
-        }
-      }
-      .card__price {
+      .custom-card-price {
         font-family: 'Quicksand', sans-serif;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 1.5;
+        letter-spacing: 0.1rem;
+        color: #000000;
+        margin-top: 7px;
+        margin-bottom: 0;
       }
     `}</style>
     </>

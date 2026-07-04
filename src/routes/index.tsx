@@ -211,7 +211,7 @@ function HomePage() {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-8">
+          <div className="mt-16 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="h-80 rounded-[2rem] bg-[var(--card)] shadow-soft animate-pulse" />

@@ -48,8 +48,7 @@ function ShopPage() {
   return (
     <section className="bg-white py-10 sm:py-20 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <header className="max-w-2xl mx-auto space-y-3 mb-8 sm:mb-0 sm:text-center">
-          <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary hidden sm:inline-block">The Collection</span>
+        <header className="mb-8 sm:mb-12">
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl text-brown font-bold tracking-tight">Products</h1>
         </header>
 
@@ -65,7 +64,7 @@ function ShopPage() {
           </div>
         ) : null}
 
-        <div className="mt-4 sm:mt-16 grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-5 sm:gap-8">
+        <div className="mt-4 sm:mt-16 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {isLoading ? (
             Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="h-80 rounded-[2rem] bg-[var(--card)] shadow-soft animate-pulse" />

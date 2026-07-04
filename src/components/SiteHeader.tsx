@@ -225,7 +225,7 @@ export function SiteHeader() {
     <>
 
       <header
-        className="sticky top-0 z-50 bg-sage-deep text-background border-b border-white/10 py-3"
+        className="fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 py-3"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -269,107 +269,160 @@ export function SiteHeader() {
             </div>
           ) : (
             /* ── NORMAL MODE ── */
-            <div className="flex items-center justify-between h-14 lg:h-16">
-              <Link to="/" className="flex items-center gap-3 group btn-bounce-hover" aria-label="Peach Craft home">
-                <img
-                  src={logoUrl}
-                  alt="Peach Craft logo"
-                  className="w-10 h-10 object-contain transition-transform group-hover:rotate-12 duration-300"
-                />
-                <span className="font-display text-2xl">
-                  <span className="text-background">Peach</span>{" "}
-                  <span className="text-blush font-bold">Craft</span>
-                </span>
-              </Link>
+            <>
+              {/* Mobile Navbar Placement: [Hamburger] - [Centered Logo] - [Search, Cart] */}
+              <div className="flex items-center justify-between h-14 lg:hidden w-full relative">
+                {/* Left: Hamburger */}
+                <div className="flex justify-start z-10">
+                  <button
+                    type="button"
+                    aria-label={mobileOpen ? "Close menu" : "Open menu"}
+                    aria-expanded={mobileOpen}
+                    onClick={() => setMobileOpen((v) => !v)}
+                    className="text-background hover:text-blush transition-colors p-1"
+                  >
+                    {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                  </button>
+                </div>
 
-              <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/10 border border-white/20 px-1 py-1 rounded-full">
-                {nav.map((item) => {
-                  const active = location.pathname.startsWith(item.to);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
+                {/* Center: Logo (Absolutely Centered and Horizontal) */}
+                <div className="absolute inset-x-0 mx-auto flex justify-center items-center pointer-events-none">
+                  <Link to="/" className="flex items-center gap-1.5 pointer-events-auto group whitespace-nowrap" aria-label="Peach Craft home">
+                    <img
+                      src={logoUrl}
+                      alt="Peach Craft logo"
+                      className="w-8 h-8 object-contain transition-transform group-hover:rotate-12 duration-300"
+                    />
+                    <span className="font-display text-xl whitespace-nowrap">
+                      <span className="text-background">Peach</span>{" "}
+                      <span className="text-blush font-bold">Craft</span>
+                    </span>
+                  </Link>
+                </div>
+
+                {/* Right: Search & Cart */}
+                <div className="flex justify-end items-center gap-4 z-10">
+                  {/* Search button */}
+                  <button
+                    type="button"
+                    aria-label="Search"
+                    onClick={openSearch}
+                    className="text-background hover:text-blush transition-colors p-1"
+                  >
+                    <Search className="w-6 h-6" />
+                  </button>
+
+                  {/* Cart */}
+                  <Link
+                    to="/cart"
+                    aria-label={`Cart, ${itemCount} items`}
+                    className="text-background hover:text-blush transition-colors p-1 relative"
+                  >
+                    <ShoppingBag
                       className={cn(
-                        "relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 btn-bounce-hover",
-                        active
-                          ? "bg-blush text-blush-foreground"
-                          : "text-background/80 hover:text-background hover:bg-white/10",
+                        "w-6 h-6 transition-transform text-background",
+                        cartBouncing && "animate-cart-bounce",
                       )}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
+                    />
+                    <span className="absolute -top-1.5 -right-1.5 grid h-4 min-w-[1rem] place-items-center rounded-full bg-blush text-[0.55rem] font-bold text-white px-0.5 shadow-soft">
+                      {itemCount}
+                    </span>
+                  </Link>
+                </div>
+              </div>
 
-              <div className="flex items-center gap-2">
-                {/* Search button */}
-                <button
-                  type="button"
-                  aria-label="Search"
-                  onClick={openSearch}
-                  className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors btn-bounce-hover shrink-0"
-                >
-                  <Search className="w-4 h-4 text-background" />
-                </button>
-
-                {/* Cart */}
-                <Link
-                  to="/cart"
-                  aria-label={`Cart, ${itemCount} items`}
-                  className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors relative btn-bounce-hover shrink-0"
-                >
-                  <ShoppingBag
-                    className={cn(
-                      "w-4 h-4 transition-transform text-background",
-                      cartBouncing && "animate-cart-bounce",
-                    )}
+              {/* Desktop Navbar Placement */}
+              <div className="hidden lg:flex items-center justify-between h-16 w-full">
+                <Link to="/" className="flex items-center gap-3 group btn-bounce-hover" aria-label="Peach Craft home">
+                  <img
+                    src={logoUrl}
+                    alt="Peach Craft logo"
+                    className="w-10 h-10 object-contain transition-transform group-hover:rotate-12 duration-300"
                   />
-                  <span className="absolute -top-1 -right-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-bold text-white px-1 shadow-soft">
-                    {itemCount}
+                  <span className="font-display text-2xl">
+                    <span className="text-background">Peach</span>{" "}
+                    <span className="text-blush font-bold">Craft</span>
                   </span>
                 </Link>
 
-                {/* Auth — desktop */}
-                {isLoggedIn ? (
-                  <div className="hidden lg:flex items-center gap-2 ml-1">
-                    <div
-                      title={userEmail ?? ""}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-blush text-blush-foreground text-sm font-semibold select-none border border-white/20"
-                    >
-                      {initial}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-white/20 bg-white/10 rounded-full text-xs font-semibold text-background hover:bg-white/20 transition-colors btn-bounce-hover"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                ) : (
-                  <Link
-                    to="/login"
-                    id="header-sign-in-btn"
-                    className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-blush text-blush-foreground text-xs font-semibold hover:bg-blush/90 transition-all btn-bounce-hover"
-                  >
-                    <UserCircle2 className="w-3.5 h-3.5 mr-1" aria-hidden />
-                    Sign In
-                  </Link>
-                )}
+                <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/10 border border-white/20 px-1 py-1 rounded-full">
+                  {nav.map((item) => {
+                    const active = location.pathname.startsWith(item.to);
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        className={cn(
+                          "relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 btn-bounce-hover",
+                          active
+                            ? "bg-blush text-blush-foreground"
+                            : "text-background/80 hover:text-background hover:bg-white/10",
+                        )}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
 
-                {/* Mobile menu toggle */}
-                <button
-                  type="button"
-                  aria-label={mobileOpen ? "Close menu" : "Open menu"}
-                  aria-expanded={mobileOpen}
-                  onClick={() => setMobileOpen((v) => !v)}
-                  className="lg:hidden grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 btn-bounce-hover"
-                >
-                  {mobileOpen ? <X className="w-4 h-4 text-background" /> : <Menu className="w-4 h-4 text-background" />}
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Search button */}
+                  <button
+                    type="button"
+                    aria-label="Search"
+                    onClick={openSearch}
+                    className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors btn-bounce-hover shrink-0"
+                  >
+                    <Search className="w-4 h-4 text-background" />
+                  </button>
+
+                  {/* Cart */}
+                  <Link
+                    to="/cart"
+                    aria-label={`Cart, ${itemCount} items`}
+                    className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors relative btn-bounce-hover shrink-0"
+                  >
+                    <ShoppingBag
+                      className={cn(
+                        "w-4 h-4 transition-transform text-background",
+                        cartBouncing && "animate-cart-bounce",
+                      )}
+                    />
+                    <span className="absolute -top-1 -right-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-bold text-white px-1 shadow-soft">
+                      {itemCount}
+                    </span>
+                  </Link>
+
+                  {/* Auth — desktop */}
+                  {isLoggedIn ? (
+                    <div className="hidden lg:flex items-center gap-2 ml-1">
+                      <div
+                        title={userEmail ?? ""}
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-blush text-blush-foreground text-sm font-semibold select-none border border-white/20"
+                      >
+                        {initial}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-white/20 bg-white/10 rounded-full text-xs font-semibold text-background hover:bg-white/20 transition-colors btn-bounce-hover"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  ) : (
+                    <Link
+                      to="/login"
+                      id="header-sign-in-btn"
+                      className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-blush text-blush-foreground text-xs font-semibold hover:bg-blush/90 transition-all btn-bounce-hover"
+                    >
+                      <UserCircle2 className="w-3.5 h-3.5 mr-1" aria-hidden />
+                      Sign In
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 

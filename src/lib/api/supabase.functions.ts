@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
-import { verifyAdmin } from "./admin-auth";
 
 export type ProductRow = {
   id: string;
@@ -69,17 +68,6 @@ export type CartOrderItem = {
   price_at_purchase: number;
 };
 
-export type CartItemRow = {
-  item_cart_id: string;
-  product_id: string;
-  qty: number;
-  price: number;
-  name: string;
-  image?: string | null;
-  swatch?: string | null;
-  stock_qty?: number | null;
-};
-
 export type OrderShippingAddress = {
   name: string;
   email: string;
@@ -109,6 +97,31 @@ function formatDateRange(start: Date, end: Date) {
     start: start.toISOString(),
     end: end.toISOString(),
   };
+}
+
+async function verifyAdmin(request?: Request, accessToken?: string) {
+  const supabase = getSupabaseServer(request, { authOnly: true });
+
+  let user = null;
+  let error = null;
+
+  if (accessToken) {
+    const tokenResult = await (supabase.auth as any).getUser(accessToken);
+    user = tokenResult?.data?.user ?? null;
+    error = tokenResult?.error ?? null;
+  }
+
+  if (!user) {
+    const cookieResult = await supabase.auth.getUser();
+    user = cookieResult.data?.user ?? null;
+    error = cookieResult.error ?? error;
+  }
+
+  if (error || !user || user.email !== process.env.ADMIN_EMAIL) {
+    throw new Error("Unauthorized");
+  }
+
+  return user;
 }
 
 export const getFeaturedProducts = createServerFn({ method: "GET" }).handler(async () => {
@@ -143,7 +156,6 @@ export const getAllProducts = createServerFn({ method: "GET" }).handler(async ()
 });
 
 export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(async () => {
-  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const today = new Date();
@@ -195,6 +207,8 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
     throw lowStockError;
   }
 
+
+  ///bad
   const { data: recentOrders, error: recentOrdersError } = await supabase
     .from("orders")
     .select("id,user_id,total_amount,status,created_at")
@@ -310,7 +324,7 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id")
       .eq("user_id", userId)
       .in("status", ["pending", "confirmed", "shipped"]);
-
+ 
     if (activeOrdersError) {
       throw activeOrdersError;
     }
@@ -411,11 +425,10 @@ export const createOrder = createServerFn({ method: "POST" })
   });
 
 export const getAdminProducts = createServerFn({ method: "GET" }).handler(async () => {
-  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,price,category,stock_qty,is_active,images")
+    .select("id,name,price,category,stock_qty,is_active")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -500,7 +513,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
           try {
             const encodedObjectKey = encodeR2ObjectKey(filePath);
             const deleteUrl = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedObjectKey}`;
-            const response = await fetch(deleteUrl, {
+            const response = await  (deleteUrl, {
               method: "DELETE",
               headers: {
                 Authorization: `Bearer ${r2ApiToken}`,
@@ -660,7 +673,6 @@ export const updateProduct = createServerFn({ method: "POST" })
   });
 
 export const getOrdersList = createServerFn({ method: "GET" }).handler(async () => {
-  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data: orders, error } = await supabase
     .from("orders")
@@ -695,7 +707,6 @@ export const getOrdersList = createServerFn({ method: "GET" }).handler(async () 
 export const getOrderDetails = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
-    await verifyAdmin();
     const supabase = getSupabaseServer();
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -786,217 +797,101 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return updated[0];
   });
 
-export type AnalyticsData = {
-  allTimeRevenue: number;
-  allTimeOrderCount: number;
-  avgOrderValue: number;
-  revenueThisMonth: number;
-  revenueLastMonth: number;
-  ordersThisMonth: number;
-  ordersLastMonth: number;
-  lowStockCount: number;
-  newCustomersThisMonth: number;
-  newCustomersLastMonth: number;
-  revenueSeries: { date: string; revenue: number }[];
-  orderCountSeries: { date: string; count: number }[];
-  statusSeries: { status: string; count: number }[];
-  categoryRevenue: { name: string; revenue: number }[];
-  topProducts: { name: string; sales: number; revenue: number }[];
-  customerGrowth: { month: string; count: number }[];
-};
-
 export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async () => {
-  await verifyAdmin();
   const supabase = getSupabaseServer();
 
-  const now = new Date();
-  const start30 = new Date(now);
-  start30.setDate(start30.getDate() - 29);
-  start30.setHours(0, 0, 0, 0);
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 29);
+  start.setHours(0, 0, 0, 0);
 
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-  // ---- Orders (last 30 days) ----
-  const { data: recentOrders, error: ordersError } = await supabase
+  const { data: orders, error: ordersError } = await supabase
     .from("orders")
     .select("id,total_amount,status,created_at")
-    .gte("created_at", start30.toISOString())
+    .gte("created_at", start.toISOString())
     .order("created_at", { ascending: true });
 
-  if (ordersError) throw ordersError;
+  if (ordersError) {
+    throw ordersError;
+  }
 
-  // ---- All-time orders for totals ----
-  const { data: allOrders, error: allOrdersError } = await supabase
-    .from("orders")
-    .select("id,total_amount,status,created_at")
-    .order("created_at", { ascending: false });
-
-  if (allOrdersError) throw allOrdersError;
-
-  // ---- Order items for product/category revenue ----
-  const { data: items, error: itemsError } = await supabase
-    .from("order_items")
-    .select("product_id,qty,price_at_purchase");
-
-  if (itemsError) throw itemsError;
-
-  // ---- Products ----
-  const { data: products, error: prodError } = await supabase
-    .from("products")
-    .select("id,name,category,stock_qty,is_active");
-
-  if (prodError) throw prodError;
-
-  // ---- Users (counts for customer growth) ----
-  const { data: users, error: usersError } = await supabase
-    .from("users")
-    .select("id,created_at");
-
-  if (usersError) throw usersError;
-
-  // ---- Build 30-day series ----
+  const todayData = orders ?? [];
   const revenueByDate = new Map<string, number>();
-  const orderCountByDate = new Map<string, number>();
   const statusCounts = new Map<string, number>();
-  const dailyDate = new Date(start30);
+  let dailyDate = new Date(start);
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 30; i += 1) {
     const key = dailyDate.toISOString().slice(0, 10);
     revenueByDate.set(key, 0);
-    orderCountByDate.set(key, 0);
     dailyDate.setDate(dailyDate.getDate() + 1);
   }
 
-  (recentOrders ?? []).forEach((order) => {
+  let totalRevenue = 0;
+  let trackedOrdersCount = 0;
+
+  (todayData ?? []).forEach((order) => {
     const day = order.created_at?.slice(0, 10) ?? "";
-    revenueByDate.set(day, (revenueByDate.get(day) ?? 0) + order.total_amount);
-    orderCountByDate.set(day, (orderCountByDate.get(day) ?? 0) + 1);
+    const prevRevenue = revenueByDate.get(day) ?? 0;
+    revenueByDate.set(day, prevRevenue + order.total_amount);
+    totalRevenue += order.total_amount;
+    trackedOrdersCount += 1;
     statusCounts.set(order.status, (statusCounts.get(order.status) ?? 0) + 1);
   });
 
+  const statusArray = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
   const revenueSeries = Array.from(revenueByDate.entries()).map(([date, revenue]) => ({ date, revenue }));
-  const orderCountSeries = Array.from(orderCountByDate.entries()).map(([date, count]) => ({ date, count }));
-  const statusSeries = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
 
-  // ---- All-time metrics ----
-  const deliveredOrders = (allOrders ?? []).filter((o) => o.status === "delivered");
-  const allRevenue = deliveredOrders.reduce((sum, o) => sum + o.total_amount, 0);
-  const allOrderCount = (allOrders ?? []).filter((o) => o.status !== "cancelled").length;
-  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
-
-  // ---- This month vs last month ----
-  const thisMonthOrders = (allOrders ?? []).filter(
-    (o) => new Date(o.created_at) >= thisMonthStart && o.status !== "cancelled",
-  );
-  const lastMonthOrders = (allOrders ?? []).filter(
-    (o) => new Date(o.created_at) >= lastMonthStart && new Date(o.created_at) <= lastMonthEnd && o.status !== "cancelled",
-  );
-
-  const revenueThisMonth = thisMonthOrders
-    .filter((o) => o.status === "delivered")
-    .reduce((sum, o) => sum + o.total_amount, 0);
-  const revenueLastMonth = lastMonthOrders
-    .filter((o) => o.status === "delivered")
-    .reduce((sum, o) => sum + o.total_amount, 0);
-  const ordersThisMonth = thisMonthOrders.length;
-  const ordersLastMonth = lastMonthOrders.length;
-
-  // ---- Low stock count ----
-  const lowStockCount = (products ?? []).filter(
-    (p) => (p.stock_qty ?? 0) < 5 && p.is_active !== false,
-  ).length;
-
-  // ---- New customers this month vs last month ----
-  const newCustomersThisMonth = (users ?? []).filter(
-    (u) => new Date(u.created_at) >= thisMonthStart,
-  ).length;
-  const newCustomersLastMonth = (users ?? []).filter(
-    (u) => new Date(u.created_at) >= lastMonthStart && new Date(u.created_at) <= lastMonthEnd,
-  ).length;
-
-  // ---- Customer growth (monthly for 12 months) ----
-  const twelveMonthsAgo = new Date(now);
-  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
-  twelveMonthsAgo.setDate(1);
-  twelveMonthsAgo.setHours(0, 0, 0, 0);
-
-  const customerGrowthMap = new Map<string, number>();
-  const monthCursor = new Date(twelveMonthsAgo);
-  for (let i = 0; i < 12; i++) {
-    const key = `${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, "0")}`;
-    customerGrowthMap.set(key, 0);
-    monthCursor.setMonth(monthCursor.getMonth() + 1);
+  const { data: items, error: itemsError } = await supabase.from("order_items").select("product_id,qty,price_at_purchase");
+  if (itemsError) {
+    throw itemsError;
   }
 
-  (users ?? []).forEach((u) => {
-    const key = u.created_at?.slice(0, 7) ?? "";
-    if (customerGrowthMap.has(key)) {
-      customerGrowthMap.set(key, (customerGrowthMap.get(key) ?? 0) + 1);
-    }
+  const productIds = Array.from(new Set((items ?? []).map((item) => item.product_id).filter(Boolean)));
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("id,name")
+    .in("id", productIds);
+
+  if (productsError) {
+    throw productsError;
+  }
+
+  const revenueByProduct = new Map<string, number>();
+  const productMap = new Map<string, string>();
+  (products ?? []).forEach((product) => {
+    productMap.set(product.id, product.name ?? "Unknown");
   });
 
-  const customerGrowth = Array.from(customerGrowthMap.entries()).map(([month, count]) => ({ month, count }));
-
-  // ---- Category revenue ----
-  const productCategoryMap = new Map<string, string>();
-  (products ?? []).forEach((p) => {
-    productCategoryMap.set(p.id, p.category ?? "Uncategorized");
-  });
-
-  const categoryRevenueMap = new Map<string, number>();
   (items ?? []).forEach((item) => {
-    const cat = productCategoryMap.get(item.product_id) ?? "Uncategorized";
-    const rev = item.qty * item.price_at_purchase;
-    categoryRevenueMap.set(cat, (categoryRevenueMap.get(cat) ?? 0) + rev);
+    const productName = productMap.get(item.product_id) ?? "Unknown";
+    revenueByProduct.set(
+      productName,
+      (revenueByProduct.get(productName) ?? 0) + item.qty * item.price_at_purchase,
+    );
   });
 
-  const categoryRevenue = Array.from(categoryRevenueMap.entries())
+  const topProducts = Array.from(revenueByProduct.entries())
     .map(([name, revenue]) => ({ name, revenue }))
-    .sort((a, b) => b.revenue - a.revenue);
-
-  // ---- Top products (with sales count) ----
-  const productNameMap = new Map<string, string>();
-  (products ?? []).forEach((p) => {
-    productNameMap.set(p.id, p.name ?? "Unknown");
-  });
-
-  const productSalesMap = new Map<string, { sales: number; revenue: number }>();
-  (items ?? []).forEach((item) => {
-    const existing = productSalesMap.get(item.product_id) ?? { sales: 0, revenue: 0 };
-    existing.sales += item.qty;
-    existing.revenue += item.qty * item.price_at_purchase;
-    productSalesMap.set(item.product_id, existing);
-  });
-
-  const topProducts = Array.from(productSalesMap.entries())
-    .map(([id, data]) => ({
-      name: productNameMap.get(id) ?? "Unknown",
-      sales: data.sales,
-      revenue: data.revenue,
-    }))
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
+  const { data: allOrders, error: allOrdersError } = await supabase.from("orders").select("id,total_amount");
+  if (allOrdersError) {
+    throw allOrdersError;
+  }
+
+  const allRevenue = (allOrders ?? []).reduce((sum, order) => sum + order.total_amount, 0);
+  const allOrderCount = (allOrders ?? []).length;
+  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
+
   return {
+    revenueSeries,
+    statusSeries: statusArray,
+    topProducts,
     allTimeRevenue: allRevenue,
     allTimeOrderCount: allOrderCount,
     avgOrderValue,
-    revenueThisMonth,
-    revenueLastMonth,
-    ordersThisMonth,
-    ordersLastMonth,
-    lowStockCount,
-    newCustomersThisMonth,
-    newCustomersLastMonth,
-    revenueSeries,
-    orderCountSeries,
-    statusSeries,
-    categoryRevenue,
-    topProducts,
-    customerGrowth,
-  } satisfies AnalyticsData;
+  };
 });
 
 export const uploadProductImage = createServerFn({ method: "POST" })
@@ -1078,7 +973,6 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       password: z.string().min(8, "Password must be at least 8 characters"),
       username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
       address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
-      ip: z.string().optional(),
     })
   )
   .handler(async ({ data }) => {
@@ -1089,7 +983,7 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
     // If no IP is provided, this will count under the 'unknown' bucket.
     try {
       const MAX_PER_HOUR = 5;
-      const ip = data.ip ? String(data.ip) : "unknown";
+      const ip = (data as any).ip ? String((data as any).ip) : "unknown";
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       const { data: recentAttempts } = await supabase
@@ -1227,7 +1121,6 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
     };
   });
 
-// Persist cart for authenticated user
 export const saveCartForUser = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
@@ -1239,14 +1132,24 @@ export const saveCartForUser = createServerFn({ method: "POST" })
           qty: z.number(),
           image: z.string().nullable().optional(),
           swatch: z.string().nullable().optional(),
+          stock_qty: z.number().nullable().optional(),
         }),
       ),
+      accessToken: z.string().optional(),
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? null;
+    const supabase = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await supabase.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
     if (!userId) throw new Error("Authentication required to save cart.");
 
     const { error } = await supabase
@@ -1257,316 +1160,66 @@ export const saveCartForUser = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-export const getCartForUser = createServerFn({ method: "GET" }).handler(async () => {
-  const supabase = getSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return { items: [] };
-
-  const { data: cartData, error } = await supabase.from("carts").select("items").eq("user_id", userId).single();
-  if (error) return { items: [] };
-  return { items: (cartData as any)?.items ?? [] };
-});
-
-export const getCartItemsForUser = createServerFn({ method: "GET" }).handler(async () => {
-  const supabase = getSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return { items: [] as CartItemRow[] };
-
-  const { data, error } = await supabase
-    .from("cart_items")
-    .select("id,product_id,qty,price,name,image,swatch,stock_qty")
-    .eq("user_id", userId);
-
-  if (error) return { items: [] };
-
-  return {
-    items: (data ?? []).map((item: any) => ({
-      item_cart_id: item.id,
-      product_id: item.product_id,
-      qty: item.qty,
-      price: item.price,
-      name: item.name,
-      image: item.image,
-      swatch: item.swatch,
-      stock_qty: item.stock_qty,
-    })),
-  };
-});
-
-async function getAuthenticatedUserId(supabase: ReturnType<typeof getSupabaseServer>) {
-  const { data: authData } = await supabase.auth.getUser();
-  return authData.user?.id ?? null;
-}
-
-async function enforceCartAddRateLimit(supabase: ReturnType<typeof getSupabaseServer>, userId: string) {
-  const windowStart = new Date(Date.now() - 60_000).toISOString();
-  const { count, error } = await supabase
-    .from("cart_add_attempts")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", windowStart);
-
-  if (error) throw error;
-  if ((count ?? 0) >= 20) {
-    throw new Error("Too many cart requests. Please wait a moment.");
-  }
-
-  const { error: insertError } = await supabase.from("cart_add_attempts").insert({ user_id: userId });
-  if (insertError) throw insertError;
-}
-
-export const addCartItem = createServerFn({ method: "POST" })
+export const getCartForUser = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
-      product_id: z.string(),
-      qty: z.number().min(1),
-      price: z.number(),
-      name: z.string(),
-      image: z.string().nullable().optional(),
-      swatch: z.string().nullable().optional(),
-      stock_qty: z.number().nullable().optional(),
+      accessToken: z.string().optional(),
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) throw new Error("Authentication required to add a cart item.");
+    const supabase = getSupabaseServer(undefined, { authOnly: true });
 
-    await enforceCartAddRateLimit(supabase, userId);
-
-    const nextQty = data.qty;
-    const stockQuantity = data.stock_qty ?? Infinity;
-    if (stockQuantity !== Infinity && nextQty > stockQuantity) {
-      throw new Error(`Only ${stockQuantity} items are available for this product.`);
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
     }
+    if (!userId) {
+      const { data: authData } = await supabase.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
+    if (!userId) return { items: [] };
 
-    const { data: existing, error: existingError } = await supabase
-      .from("cart_items")
-      .select("id,qty")
+    const { data: cartData, error } = await supabase.from("carts").select("items").eq("user_id", userId).single();
+    if (error) return { items: [] };
+    return { items: (cartData as any)?.items ?? [] };
+  });
+
+export const getMyOrders = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await supabase.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
+    if (!userId) return [] as any[];
+
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select("id,status,total_amount,created_at")
       .eq("user_id", userId)
-      .eq("product_id", data.product_id)
-      .maybeSingle();
-
-    if (existingError) throw existingError;
-
-    const combinedQty = existing ? existing.qty + data.qty : data.qty;
-    if (stockQuantity !== Infinity && combinedQty > stockQuantity) {
-      throw new Error(`Only ${stockQuantity} items are available for this product.`);
-    }
-
-    // Enforce max 25 units per product per user
-    const MAX_ITEMS_PER_PRODUCT = 25;
-    if (combinedQty > MAX_ITEMS_PER_PRODUCT) {
-      throw new Error(
-        `You can only add up to ${MAX_ITEMS_PER_PRODUCT} units of ${data.name} in your cart.`,
-      );
-    }
-
-    const payload = {
-      user_id: userId,
-      product_id: data.product_id,
-      qty: combinedQty,
-      price: data.price,
-      name: data.name,
-      image: data.image ?? null,
-      swatch: data.swatch ?? null,
-      stock_qty: data.stock_qty ?? null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: savedItem, error: upsertError } = await supabase
-      .from("cart_items")
-      .upsert(payload, { onConflict: "user_id,product_id" })
-      .select("id,product_id,qty,price,name,image,swatch,stock_qty")
-      .single();
-
-    if (upsertError) throw upsertError;
-
-    return {
-      item: {
-        item_cart_id: savedItem.id,
-        product_id: savedItem.product_id,
-        qty: savedItem.qty,
-        price: savedItem.price,
-        name: savedItem.name,
-        image: savedItem.image,
-        swatch: savedItem.swatch,
-        stock_qty: savedItem.stock_qty,
-      },
-    };
-  });
-
-export const mergeCartItems = createServerFn({ method: "POST" })
-  .inputValidator(
-    z.object({
-      items: z.array(
-        z.object({
-          product_id: z.string(),
-          qty: z.number().min(1),
-          price: z.number(),
-          name: z.string(),
-          image: z.string().nullable().optional(),
-          swatch: z.string().nullable().optional(),
-          stock_qty: z.number().nullable().optional(),
-        }),
-      ),
-    }),
-  )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) throw new Error("Authentication required to merge cart items.");
-
-    const mergedItems = new Map<string, { qty: number; item: typeof data.items[number] }>();
-    for (const item of data.items) {
-      const existing = mergedItems.get(item.product_id);
-      if (existing) {
-        existing.qty += item.qty;
-      } else {
-        mergedItems.set(item.product_id, { qty: item.qty, item });
-      }
-    }
-
-    const productIds = Array.from(mergedItems.keys());
-    const { data: existingItems, error: existingError } = await supabase
-      .from("cart_items")
-      .select("product_id,qty")
-      .eq("user_id", userId)
-      .in("product_id", productIds);
-
-    if (existingError) throw existingError;
-
-    const existingQtyMap = new Map<string, number>();
-    for (const row of existingItems ?? []) {
-      existingQtyMap.set(row.product_id, row.qty);
-    }
-
-    const MAX_ITEMS_PER_PRODUCT = 25;
-
-    for (const [, record] of mergedItems) {
-      const base = record.item;
-      const qty = record.qty + (existingQtyMap.get(base.product_id) ?? 0);
-      if (qty > MAX_ITEMS_PER_PRODUCT) {
-        throw new Error(
-          `You can only add up to ${MAX_ITEMS_PER_PRODUCT} units of ${base.name} in your cart.`,
-        );
-      }
-    }
-
-    const upsertItems = Array.from(mergedItems.entries()).map(([product_id, record]) => {
-      const base = record.item;
-      const qty = record.qty + (existingQtyMap.get(product_id) ?? 0);
-      return {
-        user_id: userId,
-        product_id,
-        qty,
-        price: base.price,
-        name: base.name,
-        image: base.image ?? null,
-        swatch: base.swatch ?? null,
-        stock_qty: base.stock_qty ?? null,
-        updated_at: new Date().toISOString(),
-      };
-    });
-
-    const { error: upsertError } = await supabase
-      .from("cart_items")
-      .upsert(upsertItems, { onConflict: "user_id,product_id" });
-
-    if (upsertError) throw upsertError;
-    return { success: true };
-  });
-
-export const updateCartItemQuantity = createServerFn({ method: "POST" })
-  .inputValidator(
-    z.object({
-      item_cart_id: z.string().uuid(),
-      qty: z.number().min(0),
-    }),
-  )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) throw new Error("Authentication required to update cart items.");
-
-    if (data.qty === 0) {
-      const { error } = await supabase
-        .from("cart_items")
-        .delete()
-        .eq("id", data.item_cart_id)
-        .eq("user_id", userId);
-      if (error) throw error;
-      return { success: true };
-    }
-
-    const { error } = await supabase
-      .from("cart_items")
-      .update({ qty: data.qty, updated_at: new Date().toISOString() })
-      .eq("id", data.item_cart_id)
-      .eq("user_id", userId);
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return { success: true };
+
+    return (orders ?? []).map((o) => ({
+      id: o.id,
+      status: o.status,
+      total_amount: o.total_amount,
+      created_at: o.created_at,
+    }));
   });
-
-export const removeCartItem = createServerFn({ method: "POST" })
-  .inputValidator(
-    z.object({
-      item_cart_id: z.string().uuid(),
-    }),
-  )
-  .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) throw new Error("Authentication required to remove cart items.");
-
-    const { error } = await supabase
-      .from("cart_items")
-      .delete()
-      .eq("id", data.item_cart_id)
-      .eq("user_id", userId);
-
-    if (error) throw error;
-    return { success: true };
-  });
-
-export const clearCartItems = createServerFn({ method: "POST" })
-  .handler(async () => {
-    const supabase = getSupabaseServer();
-    const userId = await getAuthenticatedUserId(supabase);
-    if (!userId) throw new Error("Authentication required to clear cart items.");
-
-    const { error } = await supabase
-      .from("cart_items")
-      .delete()
-      .eq("user_id", userId);
-    if (error) throw error;
-    return { success: true };
-  });
-
-export const getMyOrders = createServerFn({ method: "GET" }).handler(async () => {
-  const supabase = getSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return [] as any[];
-
-  const { data: orders, error } = await supabase
-    .from("orders")
-    .select("id,status,total_amount,created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return (orders ?? []).map((o) => ({
-    id: o.id,
-    status: o.status,
-    total_amount: o.total_amount,
-    created_at: o.created_at,
-  }));
-});
 
 export const verifyEmail = createServerFn({ method: "POST" })
   .inputValidator(
@@ -1623,7 +1276,6 @@ export const verifyEmail = createServerFn({ method: "POST" })
 export const checkEmailVerification = createServerFn({ method: "POST" })
   .inputValidator(z.object({ userId: z.string().uuid() }))
   .handler(async ({ data }) => {
-    await verifyAdmin();
     const supabase = getSupabaseServer();
 
     const { data: profile, error } = await supabase

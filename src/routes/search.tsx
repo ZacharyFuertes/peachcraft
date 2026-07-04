@@ -113,7 +113,7 @@ function SearchResultsPage() {
         <div className="mt-12">
           {isLoading ? (
             // Skeleton Loader
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-[28rem] rounded-3xl bg-[var(--card)] animate-pulse shadow-soft" />
               ))}
@@ -174,7 +174,7 @@ function SearchResultsPage() {
                 <span>Showing {products.length} result{products.length === 1 ? "" : "s"}</span>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-6 sm:gap-6 animate-fade-in">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-fade-in">
                 {products.map((p) => {
                   const typedProduct = p as Product & { brand: string; searchScore: number };
                   return (
