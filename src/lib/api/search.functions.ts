@@ -42,7 +42,7 @@ export function getVirtualBrand(product: {
   const descLower = (product.description ?? "").toLowerCase();
   const categoryLower = (product.category ?? "").toLowerCase();
 
-  if (categoryLower.includes("accessories")) {
+  if (categoryLower.includes("accessories") || categoryLower.includes("fake cakes") || categoryLower.includes("airdry clay crafts")) {
     return "Kawaii Deco";
   }
   if (categoryLower.includes("clay") || nameLower.includes("clay") || descLower.includes("clay")) {

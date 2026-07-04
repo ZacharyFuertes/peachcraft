@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { searchProducts } from "@/lib/api/search.functions";
+import { PRODUCT_CATEGORY_OPTIONS } from "@/lib/productCategories";
 import { Search, Sparkles, SlidersHorizontal, Package, Tag, CornerDownRight, ArrowLeft } from "lucide-react";
 import type { Product } from "@/lib/supabase";
 
@@ -140,7 +141,7 @@ function SearchResultsPage() {
                   Try These Collections
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {["Accessories", "Necklaces", "Earrings", "Rings", "Bracelets"].map((cat) => (
+                  {PRODUCT_CATEGORY_OPTIONS.map((cat) => (
                     <Link
                       key={cat}
                       to="/search"

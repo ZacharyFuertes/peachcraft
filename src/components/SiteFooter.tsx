@@ -1,10 +1,55 @@
 import { Link } from "@tanstack/react-router";
-import { Instagram, Music2, Mail, Sparkles, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { Instagram, Music2, Mail, Sparkles, ChevronDown } from "lucide-react";
+import { useState, type ChangeEvent } from "react";
+
+const regionOptions = [
+  { value: "ph", label: "Philippines (PHP ₱)", code: "PHP", symbol: "₱", locale: "en-PH" },
+  { value: "us", label: "United States (USD $)", code: "USD", symbol: "$", locale: "en-US" },
+  { value: "sg", label: "Singapore (SGD S$)", code: "SGD", symbol: "S$", locale: "en-SG" },
+  { value: "au", label: "Australia (AUD A$)", code: "AUD", symbol: "A$", locale: "en-AU" },
+];
+
+const paymentMethods = [
+  {
+    key: "gcash",
+    label: "GCash",
+    badgeClass: "bg-[#00A5E3] text-white",
+    icon: (
+      <svg viewBox="0 0 120 40" className="h-4 w-14" aria-hidden="true">
+        <rect width="120" height="40" rx="10" fill="#00A5E3" />
+        <path d="M34 14.2h8.4c3.8 0 6.3 1.8 6.3 5.2 0 3.6-2.8 5.5-6.4 5.5H34V14.2Zm-7.2-6.1h14.4c6.7 0 11.7 3.3 11.7 10.2 0 6.5-4.8 10-11.9 10H26.8V8.1ZM62.2 8.1h7.1l8.1 16.2h-7.3l-1.2-2.5h-7.5l-1.2 2.5h-7.2L62.2 8.1Zm2.1 5.1-2 4h3.9l-1.9-4ZM88 8.1h6.7l7.2 16.2h-7.2l-1-2.2H92l-1 2.2h-7.2L88 8.1Zm2 5.1-1.9 4h3.8l-1.9-4Z" fill="white" />
+      </svg>
+    ),
+  },
+  {
+    key: "visa",
+    label: "VISA",
+    badgeClass: "bg-white/90 text-slate-900",
+    icon: <span className="text-[10px] font-bold tracking-[0.25em]">VISA</span>,
+  },
+  {
+    key: "mastercard",
+    label: "Mastercard",
+    badgeClass: "bg-white/90 text-slate-900",
+    icon: <span className="text-[10px] font-bold tracking-[0.16em]">MC</span>,
+  },
+  {
+    key: "paypal",
+    label: "PayPal",
+    badgeClass: "bg-[#1F2C3D] text-white",
+    icon: <span className="text-[10px] font-bold tracking-[0.16em]">PayPal</span>,
+  },
+];
 
 export function SiteFooter({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
   const [done, setDone] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState(regionOptions[0]);
+
+  const handleRegionChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const nextRegion = regionOptions.find((option) => option.value === event.target.value) ?? regionOptions[0];
+    setSelectedRegion(nextRegion);
+  };
 
   return (
     <footer className="bg-sage-deep text-background mt-0 border-t border-white/10">
@@ -78,6 +123,45 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
           <p className="text-background/75 text-xs max-w-sm leading-relaxed">
             Be the first to grab restocks and limited pieces before they sell out.
           </p>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-2">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-background/70">Accepted payments</p>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                {paymentMethods.map(({ key, label, badgeClass, icon }) => (
+                  <div
+                    key={key}
+                    className={`inline-flex h-10 items-center justify-center rounded-full border border-white/10 px-3 py-2 shadow-soft ${badgeClass}`}
+                    title={label}
+                  >
+                    {icon}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <label htmlFor="region" className="text-[11px] uppercase tracking-[0.24em] text-background/70">
+                Country/region
+              </label>
+              <div className="relative w-full sm:w-60">
+                <select
+                  id="region"
+                  value={selectedRegion.value}
+                  onChange={handleRegionChange}
+                  className="w-full appearance-none rounded-full border border-white/20 bg-white/10 px-3 py-2 pr-9 text-sm text-background shadow-soft focus:outline-none focus:ring-2 focus:ring-blush"
+                >
+                  {regionOptions.map((option) => (
+                    <option key={option.value} value={option.value} className="text-slate-900">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-background/70" />
+              </div>
+            </div>
+            <p className="text-[11px] text-background/70">
+              Pricing preview: {selectedRegion.code} {selectedRegion.symbol}
+            </p>
+          </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -120,5 +204,4 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
       </div>
     </footer>
   );
-
 }

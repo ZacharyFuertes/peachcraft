@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert } from "@/components/ui/alert";
 import type { Product } from "@/lib/supabase";
+import { getAvailableProductCategories, normalizeProductCategories } from "@/lib/productCategories";
 
 export type ProductFormData = {
   name: string;
@@ -31,14 +32,13 @@ interface ProductFormProps {
 
 export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormProps) {
   const navigate = useNavigate();
-  const categoryOptions = ["Rings", "Necklaces", "Bracelets", "Earrings", "Accessories"];
   const tagOptions = ["New", "Best seller", "Limited", "Featured", "Gift"];
 
   const [name, setName] = useState(initialData?.name ?? "");
   const [priceInput, setPriceInput] = useState(initialData?.price != null ? String(initialData.price) : "");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initialData?.category ? initialData.category.split(",").map((item) => item.trim()).filter(Boolean) : [],
+    initialData?.category ? normalizeProductCategories(initialData.category) : [],
   );
   const [categorySelect, setCategorySelect] = useState("");
   const [showCategoryInput, setShowCategoryInput] = useState(false);
@@ -72,9 +72,7 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
     setName(initialData?.name ?? "");
     setPriceInput(initialData?.price != null ? String(initialData.price) : "");
     setDescription(initialData?.description ?? "");
-    setSelectedCategories(
-      initialData?.category ? initialData.category.split(",").map((item) => item.trim()).filter(Boolean) : [],
-    );
+    setSelectedCategories(initialData?.category ? normalizeProductCategories(initialData.category) : []);
     setCategorySelect("");
     setCustomCategory("");
     setShowCategoryInput(false);
@@ -296,9 +294,7 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
     setName(initialData?.name ?? "");
     setPriceInput(initialData?.price != null ? String(initialData.price) : "");
     setDescription(initialData?.description ?? "");
-    setSelectedCategories(
-      initialData?.category ? initialData.category.split(",").map((item) => item.trim()).filter(Boolean) : [],
-    );
+    setSelectedCategories(initialData?.category ? normalizeProductCategories(initialData.category) : []);
     setSelectedTags(
       initialData?.tag ? initialData.tag.split(",").map((item) => item.trim()).filter(Boolean) : [],
     );
@@ -411,7 +407,7 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
               className="flex h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             >
               <option value="">Select a category</option>
-              {categoryOptions.filter((o) => !selectedCategories.includes(o)).map((o) => (
+              {getAvailableProductCategories(selectedCategories).map((o) => (
                 <option key={o} value={o}>{o}</option>
               ))}
               <option value="new">Add custom category</option>
