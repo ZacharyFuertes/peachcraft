@@ -173,22 +173,21 @@ export function Header() {
         </Button>
         <Popover open={searchOpen} onOpenChange={setSearchOpen}>
           <PopoverTrigger asChild>
-            <div className="relative hidden md:flex items-center cursor-pointer" onClick={() => setSearchOpen(true)}>
+            <div className="relative hidden md:flex items-center cursor-pointer" onClick={() => setSearchOpen(!searchOpen)}>
               <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
                 className="h-9 w-48 lg:w-64 rounded-lg pl-8 text-sm cursor-pointer"
                 readOnly
-                onFocus={() => setSearchOpen(true)}
               />
               <kbd className="absolute right-2.5 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                 <span className="text-xs">⌘</span>K
               </kbd>
             </div>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+          <PopoverContent className="w-80 p-0" align="end" sideOffset={8} onOpenAutoFocus={(e) => e.preventDefault()}>
             <Command>
-              <CommandInput placeholder="Search pages..." autoFocus />
+              <CommandInput placeholder="Search pages..." />
               <CommandList>
                 <CommandEmpty>No pages found.</CommandEmpty>
                 <CommandGroup heading="Pages">
