@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { CartToastProvider } from "../components/CartToast";
+import { Toaster } from "../components/ui/sonner";
 
 
 function NotFoundComponent() {
@@ -133,6 +134,7 @@ function RootComponent() {
           <Outlet />
         </main>
         {!hideShell && <SiteFooter compact={/^\/shop\/[^/]+$/.test(router.state.location.pathname)} />}
+        <Toaster richColors />
       </CartToastProvider>
     </QueryClientProvider>
   );

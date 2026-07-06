@@ -5,6 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { updateOrderStatus, getOrderDetails, type OrderDetail } from "@/lib/api/supabase.functions";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const statusOptions = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 const statusColors: Record<string, string> = {
@@ -55,9 +56,12 @@ function AdminOrderDetailPage() {
 
     try {
       await updateOrderStatus({ data: { id: data.id, status } });
+      toast.success(`Order status updated to ${status}`);
       navigate({ to: "/admin/orders" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update status.");
+      const msg = err instanceof Error ? err.message : "Failed to update status.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -72,13 +76,13 @@ function AdminOrderDetailPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-[var(--foreground)]/70">Order #{data.id.slice(0, 8)}</p>
-          <h1 className="mt-2 text-4xl font-semibold text-[var(--foreground)]">Order details</h1>
+          <h1 className="mt-2 text-2xl sm:text-4xl font-semibold text-[var(--foreground)]">Order details</h1>
         </div>
-        <div className="rounded-3xl bg-[var(--card)] px-5 py-3 shadow-soft">
+        <div className="self-start sm:self-auto rounded-3xl bg-[var(--card)] px-4 py-2.5 sm:px-5 sm:py-3 shadow-soft">
           <span className={cn("inline-flex rounded-full px-3 py-1 text-sm font-semibold", statusColors[data.status] ?? "bg-[var(--foreground)] text-[var(--background)]")}>{data.status}</span>
         </div>
       </div>
@@ -132,9 +136,27 @@ function AdminOrderDetailPage() {
         </section>
       </div>
 
-      <section className="rounded-3xl bg-[var(--card)] p-6 shadow-soft">
+      <section className="rounded-3xl bg-[var(--card)] p-4 sm:p-6 shadow-soft">
         <h2 className="text-lg font-semibold text-[var(--foreground)]">Items</h2>
-        <div className="mt-4 overflow-hidden rounded-3xl border border-[var(--border)]">
+        {/* Mobile card view */}
+        <div className="mt-4 flex flex-col gap-3 sm:hidden">
+          {data.items.map((item) => (
+            <div key={item.id} className="flex items-center gap-3 rounded-2xl bg-[var(--background)] p-3">
+              {item.product_image ? (
+                <img src={item.product_image} alt={item.product_name} className="h-12 w-12 shrink-0 rounded-2xl object-cover" />
+              ) : (
+                <div className="h-12 w-12 shrink-0 rounded-2xl bg-[var(--card)]" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--foreground)] truncate">{item.product_name}</p>
+                <p className="text-xs text-[var(--foreground)]/60 mt-0.5">Qty: {item.qty} × ₱{item.price_at_purchase.toLocaleString("en-PH")}</p>
+              </div>
+              <span className="text-sm font-semibold text-[var(--foreground)] shrink-0">₱{(item.qty * item.price_at_purchase).toLocaleString("en-PH")}</span>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table view */}
+        <div className="mt-4 hidden sm:block overflow-x-auto rounded-3xl border border-[var(--border)]">
           <table className="w-full text-left text-sm">
             <thead className="bg-[var(--background)] text-[var(--foreground)]/75">
               <tr>
@@ -153,7 +175,7 @@ function AdminOrderDetailPage() {
                     ) : (
                       <div className="h-12 w-12 rounded-3xl bg-[var(--background)]" />
                     )}
-                    <span>{item.product_name}</span>
+                    <span className="truncate max-w-[140px]">{item.product_name}</span>
                   </td>
                   <td className="px-5 py-4 text-[var(--foreground)]">{item.qty}</td>
                   <td className="px-5 py-4 text-[var(--foreground)]">₱{item.price_at_purchase.toLocaleString("en-PH")}</td>

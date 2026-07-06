@@ -166,10 +166,10 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-widest text-gray-500">Products</p>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Manage products</h1>
+          <h1 className="mt-1 text-xl sm:text-2xl font-bold text-gray-900">Manage products</h1>
         </div>
         <Link to="/admin/products/new">
-          <Button className="rounded-full bg-[#4a7c59] hover:bg-[#3d6a4a] text-white gap-2">
+          <Button className="w-full sm:w-auto rounded-full bg-[#4a7c59] hover:bg-[#3d6a4a] text-white gap-2">
             <Plus className="h-4 w-4" />
             Add product
           </Button>
@@ -179,8 +179,8 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
       <div className="border-t border-gray-200" />
 
       {/* ─── Toolbar ───────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:w-72">
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search products..."
@@ -193,7 +193,7 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             value={categoryFilter}
             onValueChange={(v) => {
@@ -201,7 +201,7 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-9 w-40">
+            <SelectTrigger className="h-9 w-32 lg:w-40">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -221,7 +221,7 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-9 w-32">
+            <SelectTrigger className="h-9 w-28 lg:w-32">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -238,7 +238,7 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
               setPage(1);
             }}
           >
-            <SelectTrigger className="h-9 w-32">
+            <SelectTrigger className="h-9 w-28 lg:w-32">
               <ArrowUpDown className="h-3.5 w-3.5 mr-1 text-gray-400" />
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
@@ -271,6 +271,67 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
           </div>
         ) : (
           <>
+            {/* Mobile card view */}
+            <div className="flex flex-col gap-3 p-3 sm:hidden">
+              {paginated.map((product) => {
+                const stock = getStockBadge(product.stock_qty);
+                return (
+                  <div key={product.id} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      {product.images?.[0] ? (
+                        <Avatar className="h-11 w-11 rounded-xl shrink-0">
+                          <AvatarImage src={product.images[0]} alt={product.name} className="object-cover" />
+                          <AvatarFallback className="rounded-xl">{getInitials(product.name)}</AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <Avatar className="h-11 w-11 rounded-xl shrink-0">
+                          <AvatarFallback className="rounded-xl bg-gray-100 text-gray-500 text-xs">{getInitials(product.name)}</AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-sm font-medium text-gray-700">{formatPrice(product.price)}</span>
+                          {product.category && (
+                            <Badge variant="outline" className="text-gray-500 border-gray-200 font-normal text-xs">{product.category}</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem asChild>
+                            <Link to="/admin/products/$id" params={{ id: product.id }} className="cursor-pointer">Edit</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onToggle(product)} disabled={activeId === product.id} className="cursor-pointer">
+                            {product.is_active ? "Disable" : "Enable"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => onDelete(product)} disabled={activeId === product.id} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">Delete</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className={stock.className} variant="secondary">{stock.label} in stock</Badge>
+                      </div>
+                      <Switch
+                        checked={!!product.is_active}
+                        onCheckedChange={() => onToggle(product)}
+                        disabled={activeId === product.id}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden sm:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 border-b border-gray-200">
@@ -391,9 +452,10 @@ function ProductsTable({ data, isLoading, error, activeId, onToggle, onDelete }:
                 })}
               </TableBody>
             </Table>
+            </div>
 
             {/* ─── Table footer ──────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-gray-100">
               <p className="text-sm text-gray-500">
                 Showing {filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1}
                 {" "}of{" "}

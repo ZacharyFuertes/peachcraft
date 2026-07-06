@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -14,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +24,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Bell, LogOut, Settings } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Search, Bell, LogOut, Settings, ShoppingCart, Package, AlertTriangle, LayoutDashboard, Users, BarChart3, Globe, Loader2 } from "lucide-react";
 import { useRouterState, useNavigate, Link } from "@tanstack/react-router";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getAdminNotifications, type AdminNotificationsResponse } from "@/lib/api/supabase.functions";
+import { toast } from "sonner";
 
 function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -51,17 +68,77 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   return crumbs;
 }
 
+const notificationIcons: Record<string, typeof Bell> = {
+  new_order: ShoppingCart,
+  pending_order: AlertTriangle,
+  low_stock: Package,
+};
+
+function NotificationDot() {
+  return <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500" />;
+}
+
+const searchPages = [
+  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Order Tracking", href: "/admin/orders/tracking", icon: ShoppingCart },
+  { label: "Returns", href: "/admin/orders/returns", icon: AlertTriangle },
+  { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { label: "Website Settings", href: "/admin/website-settings", icon: Globe },
+];
+
 export function Header() {
   const { location } = useRouterState();
   const navigate = useNavigate();
   const pathname = location.pathname ?? "/admin";
   const breadcrumbs = getBreadcrumbs(pathname);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; initials: string } | null>(null);
 
-  async function handleSignOut() {
-    const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
-    navigate({ to: "/" });
-  }
+  useEffect(() => {
+    (async () => {
+      const supabase = getSupabaseClient();
+      const { data: session } = await supabase.auth.getSession();
+      const sessionUser = session?.session?.user;
+      if (sessionUser) {
+        const name = sessionUser.user_metadata?.full_name ?? sessionUser.email?.split("@")[0] ?? "Admin";
+        const email = sessionUser.email ?? "admin@peachcraft.com";
+        const initials = name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        setUser({ name, email, initials });
+      }
+    })();
+  }, []);
+
+  const { data: notifData } = useQuery<AdminNotificationsResponse>({
+    queryKey: ["admin-notifications"],
+    queryFn: getAdminNotifications,
+    refetchInterval: 30_000,
+  });
+
+  const totalCount = notifData?.totalCount ?? 0;
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      toast.success("Signed out successfully");
+      navigate({ to: "/" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sign out");
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
@@ -69,6 +146,7 @@ export function Header() {
 
       <Separator orientation="vertical" className="mr-2 h-4" />
 
+      <div className="min-w-0 flex-1 truncate">
       <Breadcrumb>
         <BreadcrumbList>
           {breadcrumbs.map((crumb, i) => (
@@ -79,7 +157,7 @@ export function Header() {
                     <Link to={crumb.href}>{crumb.label}</Link>
                   </BreadcrumbLink>
                 ) : (
-                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
                 )}
               </BreadcrumbItem>
               {i < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
@@ -87,39 +165,122 @@ export function Header() {
           ))}
         </BreadcrumbList>
       </Breadcrumb>
+      </div>
 
-      <div className="ml-auto flex items-center gap-3">
-        <div className="relative hidden md:flex items-center">
-          <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="h-9 w-64 rounded-lg pl-8 text-sm"
-          />
-          <kbd className="absolute right-2.5 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-            <span className="text-xs">⌘</span>K
-          </kbd>
-        </div>
-
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] font-medium flex items-center justify-center">
-            3
-          </Badge>
+      <div className="ml-auto flex items-center gap-1 sm:gap-3">
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSearchOpen(true)}>
+          <Search className="h-5 w-5" />
         </Button>
+        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+          <PopoverTrigger asChild>
+            <div className="relative hidden md:flex items-center cursor-pointer" onClick={() => setSearchOpen(true)}>
+              <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                className="h-9 w-48 lg:w-64 rounded-lg pl-8 text-sm cursor-pointer"
+                readOnly
+                onFocus={() => setSearchOpen(true)}
+              />
+              <kbd className="absolute right-2.5 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </div>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
+            <Command>
+              <CommandInput placeholder="Search pages..." autoFocus />
+              <CommandList>
+                <CommandEmpty>No pages found.</CommandEmpty>
+                <CommandGroup heading="Pages">
+                  {searchPages.map((page) => {
+                    const Icon = page.icon;
+                    return (
+                      <CommandItem
+                        key={page.href}
+                        value={page.label}
+                        onSelect={() => {
+                          setSearchOpen(false);
+                          navigate({ to: page.href as any });
+                        }}
+                      >
+                        <Icon className="mr-2 h-4 w-4" />
+                        {page.label}
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              {totalCount > 0 && (
+                <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] font-medium flex items-center justify-center">
+                  {totalCount > 99 ? "99+" : totalCount}
+                </Badge>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel className="flex items-center justify-between">
+              <span>Notifications</span>
+              {totalCount > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">{totalCount} total</span>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <ScrollArea className="max-h-[60vh]">
+              {notifData && notifData.notifications.length > 0 ? (
+                notifData.notifications.map((n) => {
+                  const Icon = notificationIcons[n.type] ?? Bell;
+                  const safeLink = n.link?.startsWith("/") ? n.link : "/admin";
+                  return (
+                    <DropdownMenuItem key={n.id} asChild className="cursor-pointer">
+                      <Link to={safeLink as any} className="flex items-start gap-3 px-3 py-2.5">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{n.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{n.subtitle}</p>
+                        </div>
+                        {n.type === "pending_order" && <NotificationDot />}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  No new notifications
+                </div>
+              )}
+            </ScrollArea>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/admin/orders" className="justify-center text-xs text-muted-foreground">
+                View all orders
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarFallback>PC</AvatarFallback>
+                <AvatarFallback>{user?.initials ?? "PC"}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col">
-                <span>Peach Craft</span>
-                <span className="text-xs font-normal text-muted-foreground">admin@peachcraft.com</span>
+                <span>{user?.name ?? "Peach Craft"}</span>
+                <span className="text-xs font-normal text-muted-foreground">{user?.email ?? "admin@peachcraft.com"}</span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -130,8 +291,12 @@ export function Header() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
+            <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
+              {signingOut ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" />
+              )}
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

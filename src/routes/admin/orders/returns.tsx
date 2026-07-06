@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { getOrdersList, type OrderSummary } from "@/lib/api/supabase.functions";
@@ -29,7 +29,7 @@ function AdminReturnsPage() {
     <div className="space-y-8">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-[var(--foreground)]/70">Orders</p>
-        <h1 className="mt-2 text-4xl font-semibold text-[var(--foreground)]">Returns</h1>
+        <h1 className="mt-2 text-2xl md:text-4xl font-semibold text-[var(--foreground)]">Returns</h1>
         <p className="mt-2 text-sm text-[var(--foreground)]/70">{returns.length} cancelled order{returns.length !== 1 ? "s" : ""}</p>
       </div>
 
@@ -56,6 +56,7 @@ function AdminReturnsPage() {
                 <th className="px-5 py-4">Total</th>
                 <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4">Date</th>
+                <th className="px-5 py-4">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -68,6 +69,15 @@ function AdminReturnsPage() {
                     <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-semibold", statusColors[order.status] ?? "bg-[var(--card)] text-[var(--foreground)]")}>{order.status}</span>
                   </td>
                   <td className="px-5 py-4 text-[var(--foreground)]/80">{format(new Date(order.created_at), "MMM d, yyyy")}</td>
+                  <td className="px-5 py-4">
+                    <Link
+                      to="/admin/orders/$id"
+                      params={{ id: order.id }}
+                      className="inline-flex items-center justify-center rounded-full bg-[var(--sage)] px-4 py-1.5 text-xs font-semibold text-[var(--foreground)] shadow-soft transition hover:bg-[var(--sage-deep)]"
+                    >
+                      View
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

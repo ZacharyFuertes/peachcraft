@@ -16,7 +16,7 @@ function AdminLayout() {
       <AppSidebar />
       <SidebarInset>
         <Header />
-        <div className="flex-1 bg-[#F4F4F5] p-6">
+        <div className="flex-1 bg-[#F4F4F5] p-3 sm:p-4 md:p-6 min-w-0 overflow-x-hidden">
           <Outlet />
         </div>
       </SidebarInset>

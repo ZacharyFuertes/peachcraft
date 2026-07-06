@@ -104,23 +104,23 @@ function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
           <div className="h-7 w-36 rounded bg-gray-200 animate-pulse" />
           <div className="mt-1 h-4 w-56 rounded bg-gray-200 animate-pulse" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <StatCardSkeleton key={i} />
           ))}
         </div>
-        <div className="grid gap-6 lg:grid-cols-5">
-          <ChartSkeleton className="lg:col-span-3" />
-          <ChartSkeleton className="lg:col-span-2" />
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-5">
+          <ChartSkeleton className="xl:col-span-3" />
+          <ChartSkeleton className="xl:col-span-2" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-5">
-          <ChartSkeleton className="lg:col-span-2 h-[320px]" />
-          <ChartSkeleton className="lg:col-span-3 h-[320px]" />
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-5">
+          <ChartSkeleton className="xl:col-span-2 h-[320px]" />
+          <ChartSkeleton className="xl:col-span-3 h-[320px]" />
         </div>
       </div>
     );
@@ -150,14 +150,14 @@ function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500">Your store overview at a glance</p>
       </div>
 
       {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {statCardConfig.map((cfg) => {
           const value = data![cfg.key];
           return (
@@ -175,16 +175,16 @@ function AdminDashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-5">
         {/* Sales Revenue Bar Chart */}
-        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-3">
+        <div className="rounded-xl border bg-white p-4 sm:p-5 shadow-sm xl:col-span-3">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Sales Revenue</h2>
+              <h2 className="text-sm sm:text-base font-semibold text-gray-900">Sales Revenue</h2>
               <p className="text-xs text-gray-500">Monthly revenue (last 12 months)</p>
             </div>
           </div>
-          <div className="h-[280px]">
+          <div className="h-[220px] sm:h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -211,10 +211,10 @@ function AdminDashboard() {
         </div>
 
         {/* Top Categories Donut Chart */}
-        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-base font-semibold text-gray-900">Product Categories</h2>
+        <div className="rounded-xl border bg-white p-4 sm:p-5 shadow-sm xl:col-span-2">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900">Product Categories</h2>
           <p className="text-xs text-gray-500 mb-4">Category distribution</p>
-          <div className="flex h-[200px] items-center justify-center">
+          <div className="flex h-[180px] sm:h-[200px] items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -258,10 +258,10 @@ function AdminDashboard() {
       </div>
 
       {/* Bottom Row */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-5">
         {/* Recent Activity */}
-        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-base font-semibold text-gray-900">Recent Activity</h2>
+        <div className="rounded-xl border bg-white p-4 sm:p-5 shadow-sm xl:col-span-2">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900">Recent Activity</h2>
           <p className="text-xs text-gray-500 mb-4">Latest store events</p>
           {data!.recentActivity.length === 0 ? (
             <p className="text-sm text-gray-400">No recent activity</p>
@@ -301,12 +301,13 @@ function AdminDashboard() {
         </div>
 
         {/* Top Products Table */}
-        <div className="rounded-xl border bg-white p-5 shadow-sm lg:col-span-3">
-          <h2 className="text-base font-semibold text-gray-900">Top Products</h2>
+        <div className="rounded-xl border bg-white p-4 sm:p-5 shadow-sm xl:col-span-3">
+          <h2 className="text-sm sm:text-base font-semibold text-gray-900">Top Products</h2>
           <p className="text-xs text-gray-500 mb-4">Best selling products by revenue</p>
           {data!.topProducts.length === 0 ? (
             <p className="text-sm text-gray-400">No product sales data yet</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -343,7 +344,7 @@ function AdminDashboard() {
                             N/A
                           </div>
                         )}
-                        <span className="font-medium text-gray-900 truncate max-w-[140px]">
+                        <span className="font-medium text-gray-900 truncate max-w-[100px] lg:max-w-[200px]">
                           {product.name}
                         </span>
                       </div>
@@ -358,6 +359,7 @@ function AdminDashboard() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
       </div>

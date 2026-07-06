@@ -166,6 +166,7 @@ function WebsiteSettings() {
 
   function handleReset() {
     if (!initial) return;
+    if (!window.confirm("Reset all changes to the last saved state?")) return;
     setForm({
       store_name: initial.store_name ?? "",
       store_logo: initial.store_logo ?? null,
@@ -279,8 +280,8 @@ function WebsiteSettings() {
         <div className="space-y-4">
           <div>
             <div className="text-sm font-medium mb-2">Store Logo</div>
-            <div className="flex items-center gap-4">
-              <div className="w-40 h-24 bg-white/5 rounded-md flex items-center justify-center border">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="w-full max-w-[160px] h-24 bg-white/5 rounded-md flex items-center justify-center border">
                 {logoPreview ? <img src={logoPreview} alt="logo preview" className="max-w-full max-h-full object-contain" /> : <span className="text-sm text-muted">No logo</span>}
               </div>
               <div>
@@ -291,8 +292,8 @@ function WebsiteSettings() {
 
           <div>
             <div className="text-sm font-medium mb-2">Hero Banner</div>
-            <div className="flex items-center gap-4">
-              <div className="w-64 h-36 bg-white/5 rounded-md flex items-center justify-center border">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="w-full max-w-[256px] h-36 bg-white/5 rounded-md flex items-center justify-center border">
                 {bannerPreview ? <img src={bannerPreview} alt="banner preview" className="w-full h-full object-cover rounded-md" /> : <span className="text-sm text-muted">No banner</span>}
               </div>
               <div>

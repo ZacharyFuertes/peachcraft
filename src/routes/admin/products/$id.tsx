@@ -27,7 +27,7 @@ function EditProductPage() {
     if (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Unable to load product.";
       if (message.includes("not found")) {
-        navigate({ to: "/admin/products" });
+        navigate({ to: "/admin/products", search: {} });
       }
       setError(message);
     }
@@ -39,7 +39,7 @@ function EditProductPage() {
 
     try {
       await updateProduct({ data: { id: params.id!, ...formData, accessToken } });
-      navigate({ to: "/admin/products", search: { updated: "true" } });
+      navigate({ to: "/admin/products", search: { updated: "true" as const } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product.");
     } finally {
@@ -75,10 +75,10 @@ function EditProductPage() {
     <div className="space-y-8">
       <div>
         <p className="text-sm uppercase tracking-[0.25em] text-[var(--foreground)]/70">Products</p>
-        <h1 className="mt-2 text-4xl font-semibold text-[var(--foreground)]">Edit product</h1>
+        <h1 className="mt-2 text-2xl md:text-4xl font-semibold text-[var(--foreground)]">Edit product</h1>
       </div>
       {error && <div className="rounded-3xl bg-[#f87171]/10 p-4 text-sm text-[#991b1b]">{error}</div>}
-      <div className="rounded-3xl bg-[var(--card)] p-8 shadow-soft">
+      <div className="rounded-3xl bg-[var(--card)] p-4 md:p-8 shadow-soft">
         <ProductForm initialData={data} onSubmit={handleUpdate} isLoading={isSaving} />
       </div>
     </div>

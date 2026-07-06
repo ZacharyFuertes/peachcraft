@@ -224,6 +224,97 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
   };
 });
 
+export type AdminNotification = {
+  id: string;
+  type: "new_order" | "pending_order" | "low_stock";
+  title: string;
+  subtitle: string;
+  link: string;
+  created_at: string;
+};
+
+export type AdminNotificationsResponse = {
+  totalCount: number;
+  newOrdersToday: number;
+  pendingOrders: number;
+  lowStockCount: number;
+  notifications: AdminNotification[];
+};
+
+export const getAdminNotifications = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
+  const supabase = getSupabaseServer();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const [{ count: todaysOrders }, { count: pendingOrders }, { data: lowStockItems }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", today.toISOString())
+      .lt("created_at", tomorrow.toISOString()),
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("products")
+      .select("id,name,stock_qty")
+      .lt("stock_qty", 5)
+      .order("stock_qty", { ascending: true })
+      .limit(10),
+  ]);
+
+  const lowStockCount = lowStockItems?.length ?? 0;
+  const notifications: AdminNotification[] = [];
+
+  if (pendingOrders && pendingOrders > 0) {
+    const { data: recentPending } = await supabase
+      .from("orders")
+      .select("id,created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    for (const order of recentPending ?? []) {
+      notifications.push({
+        id: `pending-${order.id}`,
+        type: "pending_order",
+        title: "Pending order",
+        subtitle: `Order #${order.id.slice(0, 8)} awaiting processing`,
+        link: `/admin/orders/${order.id}`,
+        created_at: order.created_at,
+      });
+    }
+  }
+
+  for (const item of lowStockItems ?? []) {
+    notifications.push({
+      id: `stock-${item.id}`,
+      type: "low_stock",
+      title: "Low stock alert",
+      subtitle: `${item.name} — only ${item.stock_qty} left`,
+      link: "/admin/products",
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  notifications.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const totalCount = (todaysOrders ?? 0) + (pendingOrders ?? 0) + lowStockCount;
+
+  return {
+    totalCount,
+    newOrdersToday: todaysOrders ?? 0,
+    pendingOrders: pendingOrders ?? 0,
+    lowStockCount,
+    notifications: notifications.slice(0, 20),
+  } satisfies AdminNotificationsResponse;
+});
+
 export const getUserActiveOrderStatus = createServerFn({ method: "GET" })
   .handler(async () => {
     const supabase = getSupabaseServer();

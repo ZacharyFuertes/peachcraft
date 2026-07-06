@@ -178,6 +178,7 @@ function AdminCustomersPage() {
               </div>
             ) : (
               <>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-gray-50 border-b border-gray-200">
@@ -258,9 +259,10 @@ function AdminCustomersPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
 
                 {/* ─── Table footer ──────────────────────────────── */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-gray-100">
                   <p className="text-sm text-gray-500">
                     Showing {filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1}
                     {" "}to{" "}

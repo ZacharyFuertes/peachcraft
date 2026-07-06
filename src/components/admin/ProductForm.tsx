@@ -318,14 +318,23 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 pb-4 border-b">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-gray-900">Product details</h2>
           <p className="text-sm text-gray-500">Fill in the information below to create your product.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/shop" })}>
-            Preview
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!initialData?.id}
+            onClick={() => {
+              if (initialData?.id) {
+                navigate({ to: "/shop/$id", params: { id: initialData.id } });
+              }
+            }}
+          >
+            {initialData?.id ? "Preview" : "Save first to preview"}
           </Button>
           <Button size="sm" onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? "Saving..." : "Save product"}
@@ -518,7 +527,7 @@ export function ProductForm({ initialData, onSubmit, isLoading }: ProductFormPro
                     type="button"
                     onClick={() => setSwatch(value)}
                     className={cn(
-                      "h-9 w-9 rounded-full border transition-all",
+                      "h-11 w-11 rounded-full border transition-all",
                       value === swatch
                         ? "border-indigo-500 outline outline-2 outline-indigo-500 outline-offset-2"
                         : "border-gray-200",

@@ -95,19 +95,19 @@ function AdminAnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl bg-white shadow-sm" />
+            <div key={i} className="h-24 sm:h-28 rounded-xl bg-white shadow-sm" />
           ))}
         </div>
-        <div className="h-80 rounded-xl bg-white shadow-sm" />
+        <div className="h-64 sm:h-80 rounded-xl bg-white shadow-sm" />
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="h-72 rounded-xl bg-white shadow-sm" />
-          <div className="h-72 rounded-xl bg-white shadow-sm" />
+          <div className="h-64 sm:h-72 rounded-xl bg-white shadow-sm" />
+          <div className="h-64 sm:h-72 rounded-xl bg-white shadow-sm" />
         </div>
-        <div className="h-64 rounded-xl bg-white shadow-sm" />
-        <div className="h-64 rounded-xl bg-white shadow-sm" />
+        <div className="h-56 sm:h-64 rounded-xl bg-white shadow-sm" />
+        <div className="h-56 sm:h-64 rounded-xl bg-white shadow-sm" />
       </div>
     );
   }
@@ -128,14 +128,14 @@ function AdminAnalyticsPage() {
   const hasCustomerGrowth = data.customerGrowth.some((m) => m.count > 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <p className="text-sm uppercase tracking-[0.25em] text-gray-500">Analytics</p>
-        <h1 className="mt-1 text-3xl font-semibold text-gray-900">Sales performance</h1>
+        <p className="text-xs sm:text-sm uppercase tracking-[0.25em] text-gray-500">Analytics</p>
+        <h1 className="mt-1 text-2xl sm:text-3xl font-semibold text-gray-900">Sales performance</h1>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
         <SummaryCard
           label="Total Revenue"
           value={`₱${data.allTimeRevenue.toLocaleString("en-PH")}`}
@@ -168,14 +168,14 @@ function AdminAnalyticsPage() {
       </div>
 
       {/* Revenue Area Chart */}
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
+      <section className="rounded-xl border bg-white p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Daily revenue</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Daily revenue</h2>
             <p className="text-sm text-gray-500">Last 30 days</p>
           </div>
         </div>
-        <div className="mt-4 h-[280px]">
+        <div className="mt-4 h-[220px] sm:h-[280px]">
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={data.revenueSeries}>
               <defs>
@@ -216,13 +216,13 @@ function AdminAnalyticsPage() {
 
       {/* Two-column: Status Donut + Category Revenue */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Order status</h2>
+        <section className="rounded-xl border bg-white p-4 sm:p-6 shadow-sm">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Order status</h2>
           <p className="text-sm text-gray-500">Distribution (last 30 days)</p>
           {hasStatusData ? (
-            <div className="mt-4 flex items-center gap-6">
-              <div className="h-[220px] w-[220px] shrink-0">
-                <ResponsiveContainer width="100%" height={220}>
+            <div className="mt-4 flex flex-col sm:flex-row items-center gap-6">
+              <div className="h-[180px] sm:h-[200px] w-full max-w-[220px] shrink-0">
+                <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie
                       data={data.statusSeries}
@@ -260,16 +260,16 @@ function AdminAnalyticsPage() {
           )}
         </section>
 
-        <section className="rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Revenue by category</h2>
+        <section className="rounded-xl border bg-white p-4 sm:p-6 shadow-sm">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Revenue by category</h2>
           <p className="text-sm text-gray-500">All time</p>
           {hasCategoryData ? (
-            <div className="mt-4 h-[220px]">
+            <div className="mt-4 h-[200px] sm:h-[220px]">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data.categoryRevenue} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                   <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₱${(v / 1000).toFixed(0)}k`} />
-                  <YAxis dataKey="name" type="category" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+                  <YAxis dataKey="name" type="category" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
                     {data.categoryRevenue.map((_, i) => (
@@ -327,11 +327,11 @@ function AdminAnalyticsPage() {
       </section>
 
       {/* Customer Growth */}
-      <section className="rounded-xl border bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900">Customer growth</h2>
+      <section className="rounded-xl border bg-white p-4 sm:p-6 shadow-sm">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900">Customer growth</h2>
         <p className="text-sm text-gray-500">New customers per month (last 12 months)</p>
         {hasCustomerGrowth ? (
-          <div className="mt-4 h-[220px]">
+          <div className="mt-4 h-[200px] sm:h-[220px]">
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={data.customerGrowth}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
