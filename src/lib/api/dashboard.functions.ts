@@ -78,7 +78,7 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
       .from("order_items")
       .select("product_id,qty,price_at_purchase"),
     supabase
-      .from("users")
+      .from("profiles")
       .select("id,email,created_at")
       .order("created_at", { ascending: false })
       .limit(10),
@@ -177,7 +177,7 @@ export const getDashboardData = createServerFn({ method: "GET" }).handler(async 
     new Set(recentOrders.map((o) => o.user_id).filter(Boolean) as string[]),
   );
   const { data: orderUsers } = await supabase
-    .from("users")
+    .from("profiles")
     .select("id,email")
     .in("id", orderUserIds);
 

@@ -43,14 +43,14 @@ function AdminOrdersPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
-          const newOrder = payload.new as OrderSummary;
+          const raw = payload.new as Record<string, unknown>;
           setOrders((current) => [
             {
-              id: newOrder.id,
-              user_email: newOrder.user_email,
-              total_amount: newOrder.total_amount,
-              status: newOrder.status,
-              created_at: newOrder.created_at,
+              id: raw.id as string,
+              user_email: "Loading...",
+              total_amount: raw.total_amount as number,
+              status: raw.status as string,
+              created_at: raw.created_at as string,
             },
             ...current,
           ]);

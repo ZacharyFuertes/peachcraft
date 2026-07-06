@@ -119,7 +119,7 @@ async function rankProducts(queryStr: string): Promise<SearchProductResult[]> {
   if (!orderItemsError && orderItems) {
     for (const item of orderItems) {
       if (item.product_id) {
-        popularityMap[item.product_id] = (popularityMap[item.product_id] || 0) + (item.qty || 1);
+        popularityMap[item.product_id] = (popularityMap[item.product_id] ?? 0) + (item.qty ?? 1);
       }
     }
   }

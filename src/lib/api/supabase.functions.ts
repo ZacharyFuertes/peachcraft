@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
+import { verifyAdmin } from "./admin-auth";
 
 export type ProductRow = {
   id: string;
@@ -99,31 +100,6 @@ function formatDateRange(start: Date, end: Date) {
   };
 }
 
-async function verifyAdmin(request?: Request, accessToken?: string) {
-  const supabase = getSupabaseServer(request, { authOnly: true });
-
-  let user = null;
-  let error = null;
-
-  if (accessToken) {
-    const tokenResult = await (supabase.auth as any).getUser(accessToken);
-    user = tokenResult?.data?.user ?? null;
-    error = tokenResult?.error ?? null;
-  }
-
-  if (!user) {
-    const cookieResult = await supabase.auth.getUser();
-    user = cookieResult.data?.user ?? null;
-    error = cookieResult.error ?? error;
-  }
-
-  if (error || !user || user.email !== process.env.ADMIN_EMAIL) {
-    throw new Error("Unauthorized");
-  }
-
-  return user;
-}
-
 export const getFeaturedProducts = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
@@ -220,17 +196,16 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
   }
 
   const userIds = Array.from(new Set((recentOrders ?? []).map((order) => order.user_id).filter(Boolean)));
-  const { data: users, error: usersError } = await supabase
-    .from("users")
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
     .select("id,email")
     .in("id", userIds);
 
-  if (usersError) {
-    throw usersError;
+  if (profileError) {
+    throw profileError;
   }
 
-  const userMap = new Map(users?.map((user) => [user.id, user.email]));
-
+  const userMap = new Map(profileRows?.map((user) => [user.id, user.email]));
   return {
     todaysRevenue,
     todaysOrders,
@@ -275,6 +250,14 @@ export const getUserActiveOrderStatus = createServerFn({ method: "GET" })
       activeOrder: activeOrders?.[0] ?? null,
     };
   });
+
+async function restoreStock(supabase: ReturnType<typeof getSupabaseServer>, productId: string, qty: number) {
+  if (qty <= 0) return;
+  const { data: p } = await supabase.from("products").select("stock_qty").eq("id", productId).single();
+  if (p) {
+    await supabase.from("products").update({ stock_qty: (p.stock_qty ?? 0) + qty }).eq("id", productId);
+  }
+}
 
 export const createOrder = createServerFn({ method: "POST" })
   .inputValidator(
@@ -354,34 +337,47 @@ export const createOrder = createServerFn({ method: "POST" })
       if (item.qty > available) {
         throw new Error(`Not enough stock for ${product.name}.`);
       }
-      if (item.price_at_purchase !== product.price) {
+      if (Math.round(item.price_at_purchase * 100) !== Math.round(product.price * 100)) {
         throw new Error(`Pricing mismatch for ${product.name}. Please refresh your cart.`);
       }
     }
 
-    const originalStock = new Map<string, number>();
     const updatedProductIds: string[] = [];
+    const deducted = new Map<string, number>();
 
     for (const item of data.items) {
       const product = productMap.get(item.product_id)!;
-      originalStock.set(item.product_id, product.stock_qty ?? 0);
+
+      const { data: current } = await supabase
+        .from("products")
+        .select("stock_qty")
+        .eq("id", item.product_id)
+        .single();
+
+      const currentStock = current?.stock_qty ?? 0;
+      if (item.qty > currentStock) {
+        for (const rollbackId of updatedProductIds) {
+          await restoreStock(supabase, rollbackId, deducted.get(rollbackId) ?? 0);
+        }
+        throw new Error(`Not enough stock for ${product.name}.`);
+      }
 
       const { data: updated, error: updateError } = await supabase
         .from("products")
-        .update({ stock_qty: (product.stock_qty ?? 0) - item.qty })
+        .update({ stock_qty: currentStock - item.qty })
         .eq("id", item.product_id)
         .gte("stock_qty", item.qty)
         .select("id");
 
       if (updateError || !updated || updated.length === 0) {
         for (const rollbackId of updatedProductIds) {
-          const rollbackQty = originalStock.get(rollbackId) ?? 0;
-          await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+          await restoreStock(supabase, rollbackId, deducted.get(rollbackId) ?? 0);
         }
         throw new Error(`Failed to reserve stock for ${product.name}. Please try again.`);
       }
 
       updatedProductIds.push(item.product_id);
+      deducted.set(item.product_id, (deducted.get(item.product_id) ?? 0) + item.qty);
     }
 
     const orderPayload = {
@@ -399,8 +395,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     if (orderError || !order) {
       for (const rollbackId of updatedProductIds) {
-        const rollbackQty = originalStock.get(rollbackId) ?? 0;
-        await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+        await restoreStock(supabase, rollbackId, deducted.get(rollbackId) ?? 0);
       }
       throw orderError ?? new Error("Failed to create order.");
     }
@@ -530,9 +525,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
             console.warn("[Delete] Error removing Cloudflare R2 image:", filePath, error);
             deleteFailed = true;
           }
-        }
-
-        if (imageUrl.includes("supabase.co")) {
+        } else if (imageUrl.includes("supabase.co")) {
           const supabaseFilePath = imageUrl.split("/object/public/product-images/")[1];
           if (supabaseFilePath) {
             try {
@@ -684,16 +677,16 @@ export const getOrdersList = createServerFn({ method: "GET" }).handler(async () 
   }
 
   const userIds = Array.from(new Set(orders?.map((order) => order.user_id).filter(Boolean)));
-  const { data: users, error: usersError } = await supabase
-    .from("users")
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
     .select("id,email")
     .in("id", userIds);
 
-  if (usersError) {
-    throw usersError;
+  if (profileError) {
+    throw profileError;
   }
 
-  const userMap = new Map(users?.map((user) => [user.id, user.email]));
+  const userMap = new Map(profileRows?.map((user) => [user.id, user.email]));
 
   return (orders ?? []).map((order) => ({
     id: order.id,
@@ -723,8 +716,8 @@ export const getOrderDetails = createServerFn({ method: "GET" })
     }
 
     const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("name,email")
+      .from("profiles")
+      .select("username,email")
       .eq("id", order.user_id)
       .single();
 
@@ -742,13 +735,17 @@ export const getOrderDetails = createServerFn({ method: "GET" })
     }
 
     const productIds = Array.from(new Set(items?.map((item) => item.product_id).filter(Boolean)));
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("id,name,images")
-      .in("id", productIds);
+    let products: { id: string; name: string; images?: string[] | null }[] = [];
+    if (productIds.length > 0) {
+      const { data, error: productsError } = await supabase
+        .from("products")
+        .select("id,name,images")
+        .in("id", productIds);
 
-    if (productsError) {
-      throw productsError;
+      if (productsError) {
+        throw productsError;
+      }
+      products = data ?? [];
     }
 
     const productMap = new Map(products?.map((product) => [product.id, product]));
@@ -771,7 +768,7 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       created_at: order.created_at,
       shipping_address: order.shipping_address ?? null,
       customer: {
-        name: user?.name ?? null,
+        name: user?.username ?? null,
         email: user?.email ?? null,
       },
       items: resultItems,
@@ -779,10 +776,31 @@ export const getOrderDetails = createServerFn({ method: "GET" })
   });
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ id: z.string().uuid(), status: z.string().min(1) }))
+  .inputValidator(z.object({ id: z.string().uuid(), status: z.string().min(1), accessToken: z.string().optional() }))
   .handler(async ({ data }) => {
-    await verifyAdmin();
+    await verifyAdmin(undefined, data.accessToken);
     const supabase = getSupabaseServer();
+
+    const { data: order, error: fetchError } = await supabase
+      .from("orders")
+      .select("id,status")
+      .eq("id", data.id)
+      .single();
+
+    if (fetchError || !order) {
+      throw fetchError ?? new Error("Order not found.");
+    }
+
+    if (data.status === "cancelled" && order.status !== "cancelled") {
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("product_id,qty")
+        .eq("order_id", data.id);
+
+      for (const item of items ?? []) {
+        await restoreStock(supabase, item.product_id, item.qty);
+      }
+    }
 
     const { data: updated, error } = await supabase
       .from("orders")
@@ -853,7 +871,7 @@ export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async 
       .from("products")
       .select("id,name,category"),
     supabase
-      .from("users")
+      .from("profiles")
       .select("id,created_at")
       .gte("created_at", twelveMonthsAgo.toISOString())
       .order("created_at", { ascending: true }),
@@ -1066,17 +1084,17 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       password: z.string().min(8, "Password must be at least 8 characters"),
       username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
       address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
+      ip: z.string().optional(),
     })
   )
   .handler(async ({ data }) => {
     const supabase = getSupabaseServer();
 
     // Rate-limit: allow a small number of signup attempts per IP per hour.
-    // Note: `data.ip` is expected to be provided by the client (e.g. via ipify).
     // If no IP is provided, this will count under the 'unknown' bucket.
     try {
       const MAX_PER_HOUR = 5;
-      const ip = (data as any).ip ? String((data as any).ip) : "unknown";
+      const ip = data.ip ?? "unknown";
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       const { data: recentAttempts } = await supabase

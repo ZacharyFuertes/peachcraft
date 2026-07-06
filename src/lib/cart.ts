@@ -10,7 +10,6 @@ const CART_STORAGE_KEY = "peachcraft-cart";
 const CART_UPDATED_EVENT = "peachcraft-cart-updated";
 
 export type CartItem = {
-  item_cart_id?: string;
   product_id: string;
   name: string;
   price: number;
@@ -20,7 +19,7 @@ export type CartItem = {
   stock_qty?: number | null;
 };
 
-type PersistableCartItem = Omit<CartItem, "item_cart_id">;
+type PersistableCartItem = CartItem;
 
 type ServerCartResponse = { items: CartItem[] };
 
@@ -387,10 +386,7 @@ export function useCart() {
 
         writeCartStorage(nextItems);
 
-        const itemToUpdate = prevItems.find((item) => item.product_id === productId);
-        if (itemToUpdate?.item_cart_id) {
-          void syncUpdateCartItem(itemToUpdate.item_cart_id, normalizedQty);
-        }
+        void syncUpdateCartItem(productId, normalizedQty);
 
         return nextItems;
       });
@@ -401,15 +397,11 @@ export function useCart() {
   const removeItem = useCallback(
     (productId: string) => {
       setItems((prevItems) => {
-        const itemToRemove = prevItems.find((item) => item.product_id === productId);
         const nextItems = prevItems.filter((item) => item.product_id !== productId);
 
         writeCartStorage(nextItems);
 
-        // Only sync removal if item has an ID (meaning it was synced to server)
-        if (itemToRemove?.item_cart_id) {
-          void syncRemoveCartItem(itemToRemove.item_cart_id);
-        }
+        void syncRemoveCartItem(productId);
 
         return nextItems;
       });
