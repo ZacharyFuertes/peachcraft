@@ -54,7 +54,7 @@ function AdminOrdersPage() {
             },
             ...current,
           ]);
-          setNewOrderMessage(`New order ${newOrder.id.slice(0, 8)} received!`);
+          setNewOrderMessage(`New order ${(raw.id as string).slice(0, 8)} received!`);
           window.setTimeout(() => setNewOrderMessage(null), 5000);
         },
       )

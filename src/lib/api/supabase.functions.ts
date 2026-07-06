@@ -184,7 +184,6 @@ export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(a
   }
 
 
-  ///bad
   const { data: recentOrders, error: recentOrdersError } = await supabase
     .from("orders")
     .select("id,user_id,total_amount,status,created_at")
@@ -410,8 +409,7 @@ export const createOrder = createServerFn({ method: "POST" })
     const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
     if (itemsError) {
       for (const rollbackId of updatedProductIds) {
-        const rollbackQty = originalStock.get(rollbackId) ?? 0;
-        await supabase.from("products").update({ stock_qty: rollbackQty }).eq("id", rollbackId);
+        await restoreStock(supabase, rollbackId, deducted.get(rollbackId) ?? 0);
       }
       throw itemsError;
     }
