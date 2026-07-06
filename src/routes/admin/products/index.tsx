@@ -43,7 +43,8 @@ function AdminProductsPage() {
       await deleteProduct({ data: { id: product.id, accessToken } });
       await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     } catch (error) {
-      // error handled silently
+      console.error("Failed to delete product:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete product.");
     } finally {
       setActiveId(null);
     }

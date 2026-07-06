@@ -513,7 +513,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
           try {
             const encodedObjectKey = encodeR2ObjectKey(filePath);
             const deleteUrl = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedObjectKey}`;
-            const response = await  (deleteUrl, {
+            const response = await fetch(deleteUrl, {
               method: "DELETE",
               headers: {
                 Authorization: `Bearer ${r2ApiToken}`,
@@ -797,6 +797,24 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return updated[0];
   });
 
+export type AnalyticsData = {
+  revenueSeries: { date: string; revenue: number }[];
+  statusSeries: { status: string; count: number }[];
+  topProducts: { name: string; revenue: number; sales: number }[];
+  allTimeRevenue: number;
+  allTimeOrderCount: number;
+  avgOrderValue: number;
+  revenueThisMonth: number;
+  revenueLastMonth: number;
+  ordersThisMonth: number;
+  ordersLastMonth: number;
+  newCustomersThisMonth: number;
+  newCustomersLastMonth: number;
+  lowStockCount: number;
+  categoryRevenue: { name: string; revenue: number }[];
+  customerGrowth: { month: string; count: number }[];
+};
+
 export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async () => {
   const supabase = getSupabaseServer();
 
@@ -805,15 +823,52 @@ export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async 
   start.setDate(start.getDate() - 29);
   start.setHours(0, 0, 0, 0);
 
-  const { data: orders, error: ordersError } = await supabase
-    .from("orders")
-    .select("id,total_amount,status,created_at")
-    .gte("created_at", start.toISOString())
-    .order("created_at", { ascending: true });
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
 
-  if (ordersError) {
-    throw ordersError;
-  }
+  const twelveMonthsAgo = new Date(today);
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+  const [
+    { data: orders, error: ordersError },
+    { data: allOrders, error: allOrdersError },
+    { data: items, error: itemsError },
+    { data: products, error: productsError },
+    { data: users, error: usersError },
+    { count: lowStockCount, error: lowStockError },
+  ] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id,total_amount,status,created_at")
+      .gte("created_at", start.toISOString())
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("orders")
+      .select("id,total_amount,created_at"),
+    supabase
+      .from("order_items")
+      .select("product_id,qty,price_at_purchase"),
+    supabase
+      .from("products")
+      .select("id,name,category"),
+    supabase
+      .from("users")
+      .select("id,created_at")
+      .gte("created_at", twelveMonthsAgo.toISOString())
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .lt("stock_qty", 5),
+  ]);
+
+  if (ordersError) throw ordersError;
+  if (allOrdersError) throw allOrdersError;
+  if (itemsError) throw itemsError;
+  if (productsError) throw productsError;
+  if (usersError) throw usersError;
+  if (lowStockError) throw lowStockError;
 
   const todayData = orders ?? [];
   const revenueByDate = new Map<string, number>();
@@ -826,63 +881,92 @@ export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async 
     dailyDate.setDate(dailyDate.getDate() + 1);
   }
 
-  let totalRevenue = 0;
-  let trackedOrdersCount = 0;
-
   (todayData ?? []).forEach((order) => {
     const day = order.created_at?.slice(0, 10) ?? "";
     const prevRevenue = revenueByDate.get(day) ?? 0;
     revenueByDate.set(day, prevRevenue + order.total_amount);
-    totalRevenue += order.total_amount;
-    trackedOrdersCount += 1;
     statusCounts.set(order.status, (statusCounts.get(order.status) ?? 0) + 1);
   });
 
   const statusArray = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
   const revenueSeries = Array.from(revenueByDate.entries()).map(([date, revenue]) => ({ date, revenue }));
 
-  const { data: items, error: itemsError } = await supabase.from("order_items").select("product_id,qty,price_at_purchase");
-  if (itemsError) {
-    throw itemsError;
-  }
-
-  const productIds = Array.from(new Set((items ?? []).map((item) => item.product_id).filter(Boolean)));
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("id,name")
-    .in("id", productIds);
-
-  if (productsError) {
-    throw productsError;
-  }
-
-  const revenueByProduct = new Map<string, number>();
   const productMap = new Map<string, string>();
+  const productCategoryMap = new Map<string, string>();
   (products ?? []).forEach((product) => {
     productMap.set(product.id, product.name ?? "Unknown");
+    productCategoryMap.set(product.id, product.category ?? "Uncategorized");
   });
 
+  const productData = new Map<string, { revenue: number; sales: number }>();
   (items ?? []).forEach((item) => {
     const productName = productMap.get(item.product_id) ?? "Unknown";
-    revenueByProduct.set(
-      productName,
-      (revenueByProduct.get(productName) ?? 0) + item.qty * item.price_at_purchase,
-    );
+    const existing = productData.get(productName) ?? { revenue: 0, sales: 0 };
+    existing.revenue += item.qty * item.price_at_purchase;
+    existing.sales += item.qty;
+    productData.set(productName, existing);
   });
 
-  const topProducts = Array.from(revenueByProduct.entries())
-    .map(([name, revenue]) => ({ name, revenue }))
+  const topProducts = Array.from(productData.entries())
+    .map(([name, d]) => ({ name, revenue: d.revenue, sales: d.sales }))
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
 
-  const { data: allOrders, error: allOrdersError } = await supabase.from("orders").select("id,total_amount");
-  if (allOrdersError) {
-    throw allOrdersError;
+  const catRevenueMap = new Map<string, number>();
+  (items ?? []).forEach((item) => {
+    const cat = productCategoryMap.get(item.product_id) ?? "Uncategorized";
+    catRevenueMap.set(cat, (catRevenueMap.get(cat) ?? 0) + item.qty * item.price_at_purchase);
+  });
+  const categoryRevenue = Array.from(catRevenueMap.entries())
+    .map(([name, revenue]) => ({ name, revenue }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const allOrdersData = allOrders ?? [];
+  const allRevenue = allOrdersData.reduce((sum, order) => sum + order.total_amount, 0);
+  const allOrderCount = allOrdersData.length;
+  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
+
+  const thisMonthOrders = allOrdersData.filter(
+    (o) => o.created_at >= monthStart.toISOString(),
+  );
+  const lastMonthOrders = allOrdersData.filter(
+    (o) => o.created_at >= lastMonthStart.toISOString() && o.created_at <= lastMonthEnd.toISOString(),
+  );
+  const revenueThisMonth = thisMonthOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const revenueLastMonth = lastMonthOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const ordersThisMonth = thisMonthOrders.length;
+  const ordersLastMonth = lastMonthOrders.length;
+
+  const usersData = users ?? [];
+  const newCustomersThisMonth = usersData.filter(
+    (u) => u.created_at >= monthStart.toISOString(),
+  ).length;
+  const newCustomersLastMonth = usersData.filter(
+    (u) => u.created_at >= lastMonthStart.toISOString() && u.created_at <= lastMonthEnd.toISOString(),
+  ).length;
+
+  const monthLabels: string[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today);
+    d.setMonth(d.getMonth() - i);
+    monthLabels.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  const allRevenue = (allOrders ?? []).reduce((sum, order) => sum + order.total_amount, 0);
-  const allOrderCount = (allOrders ?? []).length;
-  const avgOrderValue = allOrderCount > 0 ? allRevenue / allOrderCount : 0;
+  const growthMap = new Map<string, number>();
+  monthLabels.forEach((m) => growthMap.set(m, 0));
+  usersData.forEach((u) => {
+    if (u.created_at) {
+      const key = u.created_at.slice(0, 7);
+      if (growthMap.has(key)) {
+        growthMap.set(key, (growthMap.get(key) ?? 0) + 1);
+      }
+    }
+  });
+
+  const customerGrowth = monthLabels.map((month) => ({
+    month,
+    count: growthMap.get(month) ?? 0,
+  }));
 
   return {
     revenueSeries,
@@ -891,7 +975,16 @@ export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async 
     allTimeRevenue: allRevenue,
     allTimeOrderCount: allOrderCount,
     avgOrderValue,
-  };
+    revenueThisMonth,
+    revenueLastMonth,
+    ordersThisMonth,
+    ordersLastMonth,
+    newCustomersThisMonth,
+    newCustomersLastMonth,
+    lowStockCount: lowStockCount ?? 0,
+    categoryRevenue,
+    customerGrowth,
+  } satisfies AnalyticsData;
 });
 
 export const uploadProductImage = createServerFn({ method: "POST" })

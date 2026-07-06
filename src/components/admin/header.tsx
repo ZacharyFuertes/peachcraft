@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -71,16 +72,18 @@ export function Header() {
       <Breadcrumb>
         <BreadcrumbList>
           {breadcrumbs.map((crumb, i) => (
-            <BreadcrumbItem key={i}>
-              {crumb.href ? (
-                <BreadcrumbLink asChild>
-                  <Link to={crumb.href}>{crumb.label}</Link>
-                </BreadcrumbLink>
-              ) : (
-                <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
-              )}
+            <Fragment key={i}>
+              <BreadcrumbItem>
+                {crumb.href ? (
+                  <BreadcrumbLink asChild>
+                    <Link to={crumb.href}>{crumb.label}</Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
               {i < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-            </BreadcrumbItem>
+            </Fragment>
           ))}
         </BreadcrumbList>
       </Breadcrumb>
