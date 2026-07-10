@@ -22,6 +22,7 @@ import {
 import type { AutocompleteSuggestions } from "@/lib/api/search.functions";
 
 const nav = [
+  { to: "/", label: "Home" },
   { to: "/shop", label: "Shop" },
   { to: "/about", label: "Our Story" },
   { to: "/shipping-policy", label: "FAQ" },
@@ -371,7 +372,7 @@ export function SiteHeader() {
 
                 <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/10 border border-white/20 px-1 py-1 rounded-full">
                   {nav.map((item) => {
-                    const active = location.pathname.startsWith(item.to);
+                    const active = item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
                     return (
                       <Link
                         key={item.to}
