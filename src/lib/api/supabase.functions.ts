@@ -82,7 +82,25 @@ export type CreateOrderInput = {
   items: CartOrderItem[];
   shipping_address: OrderShippingAddress;
   total_amount: number;
-  payment_method: "cash_on_delivery";
+  payment_method: "cash_on_delivery" | "gcash";
+};
+
+export type GCashPaymentRow = {
+  id: string;
+  order_id: string;
+  gcash_reference_number: string;
+  screenshot_url: string | null;
+  customer_email: string;
+  submitted_at: string;
+  verified_at: string | null;
+  status: string;
+};
+
+export type SubmitGCashProofInput = {
+  order_id: string;
+  gcash_reference_number: string;
+  screenshot_url: string;
+  customer_email: string;
 };
 
 export type AdminDashboardData = {
@@ -315,16 +333,29 @@ export const getAdminNotifications = createServerFn({ method: "GET" }).handler(a
   } satisfies AdminNotificationsResponse;
 });
 
-export const getUserActiveOrderStatus = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const supabase = getSupabaseServer();
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? null;
+export const getUserActiveOrderStatus = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
 
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await authClient.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
     if (!userId) {
       return { hasActiveOrder: false, activeOrder: null };
     }
 
+    const supabase = getSupabaseServer();
     const { data: activeOrders, error } = await supabase
       .from("orders")
       .select("id, status")
@@ -368,17 +399,28 @@ export const createOrder = createServerFn({ method: "POST" })
         zip: z.string().min(1),
       }),
       total_amount: z.number().min(0),
-      payment_method: z.literal("cash_on_delivery"),
+      payment_method: z.enum(["cash_on_delivery", "gcash"]),
+      accessToken: z.string().optional(),
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer();
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id ?? null;
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
 
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await authClient.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
     if (!userId) {
       throw new Error("Authentication required. Please sign in to place an order.");
     }
+
+    // Service-role client for DB operations (bypasses RLS)
+    const supabase = getSupabaseServer();
 
     // Verify email_verified status in user profile
     const { data: profile, error: profileError } = await supabase
@@ -470,11 +512,13 @@ export const createOrder = createServerFn({ method: "POST" })
       deducted.set(item.product_id, (deducted.get(item.product_id) ?? 0) + item.qty);
     }
 
-    const orderPayload = {
+    const orderPayload: Record<string, unknown> = {
       user_id: userId,
       total_amount: data.total_amount,
       status: "pending",
       shipping_address: data.shipping_address,
+      payment_method: data.payment_method,
+      payment_status: data.payment_method === "gcash" ? "pending" : "paid",
     };
 
     const { data: order, error: orderError } = await supabase
@@ -506,6 +550,384 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     return { id: order.id };
+  });
+
+function generateOrderId(orderUuid: string, createdAt: string): string {
+  const date = new Date(createdAt);
+  const yyyymmdd = date.toISOString().slice(0, 10).replace(/-/g, "");
+  const suffix = orderUuid.replace(/-/g, "").slice(0, 3).toUpperCase();
+  return `PTT-${yyyymmdd}-${suffix}`;
+}
+
+const KNOWN_IMAGE_MAGIC_BYTES: Record<string, Uint8Array[]> = {
+  "image/png": [new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])],
+  "image/jpeg": [new Uint8Array([0xFF, 0xD8, 0xFF])],
+  "image/gif": [new Uint8Array([0x47, 0x49, 0x46, 0x38])],
+  "image/webp": [new Uint8Array([0x52, 0x49, 0x46, 0x46])],
+};
+
+function validateMagicBytes(buffer: Uint8Array, mimeType: string): boolean {
+  const signatures = KNOWN_IMAGE_MAGIC_BYTES[mimeType];
+  if (!signatures) return false;
+  return signatures.some((sig) => {
+    if (buffer.length < sig.length) return false;
+    for (let i = 0; i < sig.length; i++) {
+      if (buffer[i] !== sig[i]) return false;
+    }
+    return true;
+  });
+}
+
+export const uploadPaymentProof = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      fileName: z.string().min(1),
+      base64: z.string().min(1),
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await authClient.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required.");
+    }
+
+    const supabase = getSupabaseServer();
+
+    const { Buffer } = await import("node:buffer");
+    const mimeType = data.base64.match(/^data:(.*);base64,/)?.[1] ?? "application/octet-stream";
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(mimeType)) {
+      throw new Error("Unsupported file type. Please upload a PNG, JPEG, GIF, or WebP image.");
+    }
+
+    const base64String = data.base64.replace(/^data:.*;base64,/, "");
+    const buffer = Buffer.from(base64String, "base64");
+
+    if (!validateMagicBytes(new Uint8Array(buffer), mimeType)) {
+      throw new Error("File validation failed. The uploaded file does not appear to be a valid image.");
+    }
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      throw new Error("File is too large. Maximum size is 10 MB.");
+    }
+
+    const filePath = `payment-proofs/${Date.now()}-${data.fileName}`;
+    const encodeR2ObjectKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
+
+    const r2AccountId = process.env.CLOUDFLARE_R2_ACCOUNT_ID;
+    const r2BucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+    const r2ApiToken = process.env.CLOUDFLARE_R2_API_TOKEN;
+
+    if (r2AccountId && r2BucketName && r2ApiToken) {
+      const encodedObjectKey = encodeR2ObjectKey(filePath);
+      const uploadUrl = `https://api.cloudflare.com/client/v4/accounts/${r2AccountId}/r2/buckets/${r2BucketName}/objects/${encodedObjectKey}`;
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${r2ApiToken}`,
+          "Content-Type": mimeType,
+        },
+        body: buffer,
+      });
+      const json = await response.json().catch(() => null);
+      if (response.ok && json && json.success !== false) {
+        const proxyUrl = `/api/images/${encodeURIComponent(filePath)}`;
+        return { publicUrl: proxyUrl };
+      }
+      throw new Error(`R2 upload failed: ${json?.errors?.[0]?.message}`);
+    }
+
+    const { error: uploadError } = await supabase.storage
+      .from("payment-proofs")
+      .upload(filePath, buffer, { contentType: "image/*", upsert: false });
+    if (uploadError) throw uploadError;
+    const { data: publicData } = await supabase.storage.from("payment-proofs").getPublicUrl(filePath);
+    if (!publicData) throw new Error("Failed to generate public URL.");
+    return { publicUrl: publicData.publicUrl };
+  });
+
+export const checkDuplicateReference = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ gcash_reference_number: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const { data: existing } = await supabase
+      .from("gcash_payments")
+      .select("id, status")
+      .eq("gcash_reference_number", data.gcash_reference_number)
+      .maybeSingle();
+    return {
+      isDuplicate: existing !== null && existing.status !== "rejected",
+      existingPayment: existing,
+    };
+  });
+
+export const submitGCashProof = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      order_id: z.string().uuid(),
+      gcash_reference_number: z.string().min(1, "GCash reference number is required."),
+      screenshot_url: z.string().min(1),
+      customer_email: z.string().email(),
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      const { data: authData } = await authClient.auth.getUser();
+      userId = authData.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required.");
+    }
+
+    const supabase = getSupabaseServer();
+
+    const { data: existing } = await supabase
+      .from("gcash_payments")
+      .select("id, status")
+      .eq("gcash_reference_number", data.gcash_reference_number)
+      .maybeSingle();
+
+    if (existing && existing.status !== "rejected") {
+      throw new Error("This GCash reference number has already been used.");
+    }
+
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, user_id, payment_method, payment_status")
+      .eq("id", data.order_id)
+      .single();
+
+    if (orderError || !order) {
+      throw new Error("Order not found.");
+    }
+
+    if (order.user_id !== userId) {
+      throw new Error("This order does not belong to you.");
+    }
+
+    if (order.payment_method !== "gcash") {
+      throw new Error("This order is not a GCash payment order.");
+    }
+
+    if (order.payment_status !== "pending") {
+      throw new Error("Payment has already been submitted for this order.");
+    }
+
+    const { data: payment, error: insertError } = await supabase
+      .from("gcash_payments")
+      .insert({
+        order_id: data.order_id,
+        gcash_reference_number: data.gcash_reference_number,
+        screenshot_url: data.screenshot_url,
+        customer_email: data.customer_email,
+        status: "pending",
+      })
+      .select("id, status")
+      .single();
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        throw new Error("This GCash reference number has already been used.");
+      }
+      throw insertError;
+    }
+
+    await supabase
+      .from("orders")
+      .update({ payment_status: "awaiting_verification" })
+      .eq("id", data.order_id);
+
+    return { id: payment.id, status: payment.status };
+  });
+
+export const verifyGCashPayment = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      payment_id: z.string().uuid(),
+      action: z.enum(["approve", "reject"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    await verifyAdmin();
+
+    const { data: payment, error: paymentError } = await supabase
+      .from("gcash_payments")
+      .select("id, order_id, status")
+      .eq("id", data.payment_id)
+      .single();
+
+    if (paymentError || !payment) {
+      throw new Error("GCash payment record not found.");
+    }
+
+    if (payment.status !== "pending") {
+      throw new Error("This payment has already been processed.");
+    }
+
+    const now = new Date().toISOString();
+
+    const { error: updatePaymentError } = await supabase
+      .from("gcash_payments")
+      .update({
+        status: data.action === "approve" ? "verified" : "rejected",
+        verified_at: now,
+      })
+      .eq("id", data.payment_id);
+
+    if (updatePaymentError) throw updatePaymentError;
+
+    if (data.action === "approve") {
+      const { error: updateOrderError } = await supabase
+        .from("orders")
+        .update({ payment_status: "paid", status: "confirmed" })
+        .eq("id", payment.order_id);
+
+      if (updateOrderError) throw updateOrderError;
+    } else {
+      const { error: updateOrderError } = await supabase
+        .from("orders")
+        .update({ payment_status: "failed" })
+        .eq("id", payment.order_id);
+
+      if (updateOrderError) throw updateOrderError;
+    }
+
+    return { success: true, action: data.action };
+  });
+
+export const getAdminPayments = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({
+      status: z.enum(["pending", "verified", "rejected", "all"]).optional().default("all"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    await verifyAdmin();
+
+    let query = supabase
+      .from("gcash_payments")
+      .select(`
+        id,
+        order_id,
+        gcash_reference_number,
+        screenshot_url,
+        customer_email,
+        submitted_at,
+        verified_at,
+        status,
+        orders!inner (
+          total_amount,
+          status,
+          payment_status,
+          shipping_address
+        )
+      `)
+      .order("submitted_at", { ascending: false });
+
+    if (data.status !== "all") {
+      query = query.eq("status", data.status);
+    }
+
+    const { data: payments, error } = await query;
+    if (error) throw error;
+
+    return { payments: payments ?? [] };
+  });
+
+export const getAdminPaymentsPendingOrders = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const supabase = getSupabaseServer();
+    await verifyAdmin();
+
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select("id, total_amount, status, payment_status, shipping_address, created_at, user_id")
+      .eq("payment_method", "gcash")
+      .eq("payment_status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return { orders: orders ?? [] };
+  });
+
+export const getAdminPaymentSummary = createServerFn({ method: "GET" })
+  .handler(async () => {
+    const supabase = getSupabaseServer();
+    await verifyAdmin();
+
+    const { count: needsReviewCount } = await supabase
+      .from("gcash_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending");
+
+    const { count: pendingOrdersCount } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("payment_method", "gcash")
+      .eq("payment_status", "pending");
+
+    const { count: verifiedCount } = await supabase
+      .from("gcash_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "verified");
+
+    const { count: rejectedCount } = await supabase
+      .from("gcash_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "rejected");
+
+    return {
+      needsReviewCount: needsReviewCount ?? 0,
+      pendingOrdersCount: pendingOrdersCount ?? 0,
+      verifiedCount: verifiedCount ?? 0,
+      rejectedCount: rejectedCount ?? 0,
+    };
+  });
+
+export const getAdminPayment = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ payment_id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    await verifyAdmin();
+
+    const { data: payment, error } = await supabase
+      .from("gcash_payments")
+      .select(`
+        *,
+        orders!inner (
+          total_amount,
+          status,
+          payment_status,
+          shipping_address,
+          user_id,
+          created_at
+        )
+      `)
+      .eq("id", data.payment_id)
+      .single();
+
+    if (error || !payment) throw new Error("Payment record not found.");
+    return payment;
   });
 
 export const getAdminProducts = createServerFn({ method: "GET" }).handler(async () => {
@@ -1321,6 +1743,47 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
     };
   });
 
+export const validateCartItems = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      items: z.array(
+        z.object({
+          product_id: z.string(),
+          qty: z.number(),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const supabase = getSupabaseServer();
+    const productIds = Array.from(new Set(data.items.map((item) => item.product_id)));
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id, name, is_active, stock_qty")
+      .in("id", productIds);
+
+    if (error) throw error;
+
+    const productMap = new Map(products?.map((p) => [p.id, p]));
+    const unavailable: { product_id: string; name: string; reason: string }[] = [];
+
+    for (const item of data.items) {
+      const product = productMap.get(item.product_id);
+      if (!product) {
+        unavailable.push({ product_id: item.product_id, name: "Unknown product", reason: "not_found" });
+      } else if (!product.is_active) {
+        unavailable.push({ product_id: item.product_id, name: product.name, reason: "inactive" });
+      } else if (item.qty > (product.stock_qty ?? 0)) {
+        unavailable.push({ product_id: item.product_id, name: product.name, reason: "out_of_stock" });
+      }
+    }
+
+    return {
+      available: products?.filter((p) => p.is_active && (p.stock_qty ?? 0) > 0) ?? [],
+      unavailable,
+    };
+  });
+
 export const saveCartForUser = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
@@ -1339,19 +1802,21 @@ export const saveCartForUser = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer(undefined, { authOnly: true });
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
 
     let userId: string | null = null;
     if (data.accessToken) {
-      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
       userId = tokenResult.data?.user?.id ?? null;
     }
     if (!userId) {
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData } = await authClient.auth.getUser();
       userId = authData.user?.id ?? null;
     }
     if (!userId) throw new Error("Authentication required to save cart.");
 
+    // Service-role client for DB writes (bypasses RLS, safe since we validated auth above)
+    const supabase = getSupabaseServer();
     const { error } = await supabase
       .from("carts")
       .upsert({ user_id: userId, items: data.items, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
@@ -1367,19 +1832,21 @@ export const getCartForUser = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer(undefined, { authOnly: true });
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
 
     let userId: string | null = null;
     if (data.accessToken) {
-      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
       userId = tokenResult.data?.user?.id ?? null;
     }
     if (!userId) {
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData } = await authClient.auth.getUser();
       userId = authData.user?.id ?? null;
     }
     if (!userId) return { items: [] };
 
+    // Service-role client for DB reads (bypasses RLS, safe since we validated auth above)
+    const supabase = getSupabaseServer();
     const { data: cartData, error } = await supabase.from("carts").select("items").eq("user_id", userId).single();
     if (error) return { items: [] };
     return { items: (cartData as any)?.items ?? [] };
@@ -1392,19 +1859,21 @@ export const getMyOrders = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const supabase = getSupabaseServer(undefined, { authOnly: true });
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
 
     let userId: string | null = null;
     if (data.accessToken) {
-      const tokenResult = await supabase.auth.getUser(data.accessToken);
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
       userId = tokenResult.data?.user?.id ?? null;
     }
     if (!userId) {
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData } = await authClient.auth.getUser();
       userId = authData.user?.id ?? null;
     }
     if (!userId) return [] as any[];
 
+    // Service-role client for DB reads (bypasses RLS, safe since we validated auth above)
+    const supabase = getSupabaseServer();
     const { data: orders, error } = await supabase
       .from("orders")
       .select("id,status,total_amount,created_at")

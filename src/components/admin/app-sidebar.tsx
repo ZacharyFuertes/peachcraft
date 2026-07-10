@@ -3,6 +3,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ChevronRight,
+  CreditCard,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -59,6 +60,7 @@ const navMain: NavItem[] = [
       { title: "Order Tracking", url: "/admin/orders/tracking" },
     ],
   },
+  { title: "Payments", url: "/admin/payments", icon: CreditCard },
   { title: "Customers", url: "/admin/customers", icon: Users },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];

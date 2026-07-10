@@ -35,3 +35,4 @@ structure.md
 *.njsproj
 *.sln
 *.sw?
+.vercel

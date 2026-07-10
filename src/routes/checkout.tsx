@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { createOrder, getUserActiveOrderStatus } from "@/lib/api/supabase.functions";
+import { createOrder, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCart } from "@/lib/cart";
+import { useCurrency } from "@/lib/currency-context";
+import { ArrowLeft, CheckCircle, Copy, Loader2, Upload } from "lucide-react";
+
+const GCASH_CONFIG = {
+  number: "0917 123 4567",
+  name: "Peach Craft PH",
+  qrCodeSrc: "/images/gcash-qr-placeholder.png",
+};
 
 const shippingSchema = z.object({
   name: z.string().min(1, "Please enter your full name."),
@@ -13,12 +21,19 @@ const shippingSchema = z.object({
   city: z.string().min(1, "Please enter a city."),
   province: z.string().min(1, "Please enter a province."),
   zip: z.string().min(1, "Please enter a postal code."),
-  payment_method: z.enum(["cash_on_delivery"]),
+  payment_method: z.enum(["cash_on_delivery", "gcash"]),
 });
 
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
 });
+
+function generateDisplayOrderId(orderUuid: string): string {
+  const today = new Date();
+  const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, "");
+  const suffix = orderUuid.replace(/-/g, "").slice(0, 3).toUpperCase();
+  return `PTT-${yyyymmdd}-${suffix}`;
+}
 
 function CheckoutPage() {
   const navigate = useNavigate();
@@ -40,72 +55,91 @@ function CheckoutPage() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [displayOrderId, setDisplayOrderId] = useState<string | null>(null);
+
+  const [gcashRefNo, setGcashRefNo] = useState("");
+  const [gcashEmail, setGcashEmail] = useState("");
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [refError, setRefError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { formatPrice } = useCurrency();
+  const accessTokenRef = useRef<string | null>(null);
   const shippingFee = 150;
   const taxAmount = 0;
   const totalAmount = subtotal + shippingFee + taxAmount;
 
   useEffect(() => {
     let mounted = true;
+    const supabase = getSupabaseClient();
 
-    const performChecks = async () => {
-      try {
-        const supabase = getSupabaseClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!mounted) return;
-
-        if (!user) {
-          setIsAuthenticated(false);
-          setIsVerified(false);
-          setCheckingAuth(false);
-          return;
-        }
-
-        setIsAuthenticated(true);
-        setEmail(user.email ?? "");
-
-        // Check verification status from profile
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("email_verified, username, address")
-          .eq("id", user.id)
-          .single();
-
-        if (!mounted) return;
-
-        if (profileError || !profile) {
-          setIsVerified(false);
-        } else {
-          setIsVerified(!!profile.email_verified);
-          if (profile.username) setName(profile.username);
-          if (profile.address) setStreet(profile.address);
-        }
-
-        // Check active order status
-        const activeStatus = await getUserActiveOrderStatus();
-        
-        if (!mounted) return;
-
-        setHasActiveOrder(activeStatus.hasActiveOrder);
-        setActiveOrderId(activeStatus.activeOrder?.id ?? null);
-
-      } catch (err) {
-        console.error("Checkout validation check failed:", err);
-        if (mounted) {
-          setAuthError("An error occurred while validating your session. Please refresh the page.");
-        }
-      } finally {
-        if (mounted) {
-          setCheckingAuth(false);
-        }
+    // Fast session restore: reads localStorage, no network call
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      if (!session) {
+        setIsAuthenticated(false);
+        setIsVerified(false);
+        setCheckingAuth(false);
+        return;
       }
-    };
 
-    performChecks();
+      // Session exists — set authenticated immediately (fast path)
+      accessTokenRef.current = session.access_token;
+      setEmail(session.user?.email ?? "");
+      setIsAuthenticated(true);
+      setCheckingAuth(false);
 
-    return () => {
-      mounted = false;
-    };
+      // Background fetch: profile + active order (non-blocking)
+      const userId = session.user?.id;
+      if (userId) {
+        (async () => {
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("email_verified, username, address")
+              .eq("id", userId)
+              .single();
+            if (!mounted) return;
+            if (profile) {
+              setIsVerified(!!profile.email_verified);
+              if (profile.username) setName(profile.username);
+              if (profile.address) setStreet(profile.address);
+            } else {
+              setIsVerified(false);
+            }
+          } catch {}
+        })();
+      }
+
+      getUserActiveOrderStatus({ data: { accessToken: session.access_token } })
+        .then((activeStatus) => {
+          if (!mounted) return;
+          setHasActiveOrder(activeStatus.hasActiveOrder);
+          setActiveOrderId(activeStatus.activeOrder?.id ?? null);
+        })
+        .catch(() => {});
+    });
+
+    // Real-time auth sync
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        accessTokenRef.current = session.access_token;
+        setIsAuthenticated(true);
+        setEmail(session.user.email ?? "");
+        if (checkingAuth) setCheckingAuth(false);
+      } else {
+        setIsAuthenticated(false);
+        setIsVerified(false);
+        if (checkingAuth) setCheckingAuth(false);
+      }
+    });
+
+    return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -117,187 +151,88 @@ function CheckoutPage() {
     }
   }, [checkingAuth, isAuthenticated]);
 
-  if (checkingAuth) {
-    return (
-      <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft flex flex-col items-center justify-center min-h-[300px]">
-            <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
-            <p className="text-foreground/75 font-medium">Verifying your account status...</p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (authError) {
-    return (
-      <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-4">
-            <div className="rounded-3xl bg-[#fee2e2] p-4 text-sm text-[#b91c1c]">{authError}</div>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shadow-soft"
-            >
-              Refresh Page
-            </button>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fee2e2] text-[#ef4444]">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="font-display text-3xl text-brown">Authentication Required</h1>
-              <p className="mt-3 text-foreground/75 max-w-md mx-auto">
-                Only verified users can place orders. Please sign in to your account to proceed.
-              </p>
-              <p className="mt-2 text-xs text-foreground/50">
-                Redirecting you to the login page shortly...
-              </p>
-            </div>
-            <div className="flex justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/login", search: { redirect: "/checkout" } })}
-                className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shadow-soft"
-              >
-                Sign In Now
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/signup" })}
-                className="inline-flex rounded-full border border-[var(--border)] bg-background px-6 py-3 text-sm font-semibold text-[var(--foreground)] hover:bg-accent shadow-soft"
-              >
-                Create Account
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (!isVerified) {
-    return (
-      <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fef3c7] text-[#d97706]">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="font-display text-3xl text-brown">Email Verification Required</h1>
-              <p className="mt-3 text-foreground/75 max-w-md mx-auto">
-                Your email address has not been verified yet. For security reasons, only users with verified email addresses can place orders.
-              </p>
-              <p className="mt-3 text-sm text-foreground/70">
-                Please check your inbox at <strong className="text-primary">{email}</strong> for the verification link sent during signup.
-              </p>
-            </div>
-            <div className="flex justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/shop" })}
-                className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shadow-soft"
-              >
-                Return to Shop
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (hasActiveOrder) {
-    return (
-      <section className="bg-cream py-16">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="rounded-3xl bg-[var(--card)] p-12 shadow-soft space-y-6">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fee2e2] text-[#ef4444]">
-              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="font-display text-3xl text-brown">Active Order In Progress</h1>
-              <p className="mt-3 text-foreground/75 max-w-md mx-auto">
-                You already have an order currently in progress (Order ID: <strong className="font-mono text-xs">{activeOrderId?.slice(0, 8)}</strong>).
-              </p>
-              <p className="mt-3 text-sm text-foreground/70">
-                To prevent database inflation and spam, we limit customers to one active order. You can place a new order once your current order is delivered or cancelled.
-              </p>
-            </div>
-            <div className="flex justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/shop" })}
-                className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 shadow-soft"
-              >
-                Return to Shop
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  const mutation = useMutation({
-    mutationFn: async (payload: Parameters<typeof createOrder>[0]["data"]) => {
-      return createOrder({ data: payload });
+  const createOrderMutation = useMutation({
+    mutationFn: async (payload: Omit<Parameters<typeof createOrder>[0]["data"], "accessToken">) => {
+      return createOrder({ data: { ...payload, accessToken: accessTokenRef.current ?? undefined } });
     },
-    onSuccess: () => {
-      clear();
-      setSuccessMessage("Your order is confirmed! We will reach out once it ships.");
+    onSuccess: (result) => {
+      setOrderId(result.id);
+      setDisplayOrderId(generateDisplayOrderId(result.id));
+      if (paymentMethod === "cash_on_delivery") {
+        clear();
+        setSuccessMessage("Your order is confirmed! We will reach out once it ships.");
+        setStep(4);
+      }
     },
   });
 
-  const handleSubmit = async () => {
+  const uploadMutation = useMutation({
+    mutationFn: async (payload: { fileName: string; base64: string }) => {
+      return uploadPaymentProof({ data: { ...payload, accessToken: accessTokenRef.current ?? undefined } });
+    },
+  });
+
+  const submitProofMutation = useMutation({
+    mutationFn: async (payload: Parameters<typeof submitGCashProof>[0]["data"]) => {
+      return submitGCashProof({ data: { ...payload, accessToken: accessTokenRef.current ?? undefined } });
+    },
+    onSuccess: () => {
+      clear();
+      setSuccessMessage("Your payment proof has been submitted. We'll verify and confirm your order shortly.");
+      setStep(4);
+    },
+  });
+
+  const handlePlaceOrder = async () => {
     setFormErrors({});
-    setSuccessMessage(null);
-
     if (items.length === 0) {
-      setFormErrors({ general: "Your cart is empty. Add items before checking out." });
-      return;
+      setFormErrors({ general: "Your cart is empty." });
+      return false;
     }
-
     const result = shippingSchema.safeParse({
-      name,
-      email,
-      street,
-      city,
-      province,
-      zip,
+      name, email, street, city, province, zip,
       payment_method: paymentMethod,
     });
-
     if (!result.success) {
       const newErrors: Record<string, string> = {};
       for (const issue of result.error.issues) {
         newErrors[issue.path[0] as string] = issue.message;
       }
       setFormErrors(newErrors);
-      return;
+      return false;
+    }
+
+    // Validate cart items against the database
+    try {
+      const validation = await validateCartItems({
+        data: {
+          items: items.map((item) => ({
+            product_id: item.product_id,
+            qty: item.qty,
+          })),
+        },
+      });
+      if (validation.unavailable.length > 0) {
+        const names = validation.unavailable.map((u) => `"${u.name}"`).join(", ");
+        const msg = validation.unavailable.every((u) => u.reason === "out_of_stock")
+          ? `Some items are out of stock: ${names}. Please remove them and try again.`
+          : `Some items are no longer available: ${names}. They have been removed from your cart.`;
+        // Remove unavailable items from local storage
+        const unavailableIds = new Set(validation.unavailable.map((u) => u.product_id));
+        const filtered = items.filter((i) => !unavailableIds.has(i.product_id));
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("peachcraft-cart", JSON.stringify(filtered));
+        }
+        window.dispatchEvent(new Event("peachcraft-cart-updated"));
+        setFormErrors({ general: msg });
+        return false;
+      }
+    } catch (_err) {
+      // If validation fails, just proceed and let createOrder handle it
     }
 
     try {
-      await mutation.mutateAsync({
+      await createOrderMutation.mutateAsync({
         items: items.map((item) => ({
           product_id: item.product_id,
           qty: item.qty,
@@ -314,169 +249,584 @@ function CheckoutPage() {
         total_amount: totalAmount,
         payment_method: result.data.payment_method,
       });
+      return true;
     } catch (error) {
       setFormErrors({ general: error instanceof Error ? error.message : "Unable to place order." });
+      return false;
     }
   };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScreenshotFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setScreenshotPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitProof = async () => {
+    setRefError(null);
+    setFormErrors({});
+    if (!gcashRefNo.trim()) {
+      setRefError("Please enter the GCash reference number.");
+      return;
+    }
+    if (!screenshotFile) {
+      setFormErrors({ screenshot: "Please upload a screenshot of your payment." });
+      return;
+    }
+    if (!gcashEmail.trim()) {
+      setFormErrors({ gcashEmail: "Please enter your email address." });
+      return;
+    }
+
+    try {
+      const dupCheck = await checkDuplicateReference({ data: { gcash_reference_number: gcashRefNo.trim() } });
+      if (dupCheck.isDuplicate) {
+        setRefError("This GCash reference number has already been used.");
+        return;
+      }
+    } catch {
+      // continue anyway — DB constraint will catch duplicates
+    }
+
+    const reader = new FileReader();
+    const base64 = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read file."));
+      reader.readAsDataURL(screenshotFile);
+    });
+
+    let screenshotUrl: string;
+    try {
+      const uploadResult = await uploadMutation.mutateAsync({
+        fileName: screenshotFile.name,
+        base64,
+      });
+      screenshotUrl = uploadResult.publicUrl;
+    } catch (err) {
+      setFormErrors({ screenshot: err instanceof Error ? err.message : "Failed to upload screenshot." });
+      return;
+    }
+
+    if (!orderId) {
+      setFormErrors({ general: "Order ID not found. Please try again." });
+      return;
+    }
+
+    try {
+      await submitProofMutation.mutateAsync({
+        order_id: orderId,
+        gcash_reference_number: gcashRefNo.trim(),
+        screenshot_url: screenshotUrl,
+        customer_email: gcashEmail.trim(),
+      });
+    } catch (err) {
+      setFormErrors({ general: err instanceof Error ? err.message : "Failed to submit payment proof." });
+    }
+  };
+
+  const handleCopyOrderId = () => {
+    if (displayOrderId) {
+      navigator.clipboard.writeText(displayOrderId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (checkingAuth) {
+    return (
+      <section className="bg-cream py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <div className="rounded-3xl bg-card p-12 shadow-soft flex flex-col items-center justify-center min-h-[300px]">
+            <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
+            <p className="text-foreground/75 font-medium">Verifying your account...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (authError) {
+    return (
+      <section className="bg-cream py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <div className="rounded-3xl bg-card p-12 shadow-soft space-y-4">
+            <div className="rounded-3xl bg-red-50 p-4 text-sm text-red-700">{authError}</div>
+            <button type="button" onClick={() => window.location.reload()} className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground btn-bounce-hover shadow-soft">
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <section className="bg-cream py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <div className="rounded-3xl bg-card p-12 shadow-soft space-y-6">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <div>
+              <h1 className="font-display text-3xl text-brown">Authentication Required</h1>
+              <p className="mt-3 text-foreground/75 max-w-md mx-auto">Please sign in to proceed.</p>
+            </div>
+            <div className="flex justify-center gap-4">
+              <button type="button" onClick={() => navigate({ to: "/login", search: { redirect: "/checkout" } })} className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground btn-bounce-hover shadow-soft">Sign In</button>
+              <button type="button" onClick={() => navigate({ to: "/signup" })} className="inline-flex rounded-full border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground btn-bounce-hover shadow-soft">Create Account</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <section className="bg-cream py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <div className="rounded-3xl bg-card p-12 shadow-soft space-y-6">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <div>
+              <h1 className="font-display text-3xl text-brown">Email Verification Required</h1>
+              <p className="mt-3 text-foreground/75 max-w-md mx-auto">Please verify your email before placing an order.</p>
+            </div>
+            <button type="button" onClick={() => navigate({ to: "/shop" })} className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground btn-bounce-hover shadow-soft">Return to Shop</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (hasActiveOrder) {
+    return (
+      <section className="bg-cream py-16">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+          <div className="rounded-3xl bg-card p-12 shadow-soft space-y-6">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+              <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <div>
+              <h1 className="font-display text-3xl text-brown">Active Order In Progress</h1>
+              <p className="mt-3 text-foreground/75 max-w-md mx-auto">You already have an active order (ID: <strong className="font-mono text-xs">{activeOrderId?.slice(0, 8)}</strong>). You can place a new order once your current order is completed or cancelled.</p>
+            </div>
+            <button type="button" onClick={() => navigate({ to: "/shop" })} className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground btn-bounce-hover shadow-soft">Return to Shop</button>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bg-cream py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
-          <div className="space-y-6 rounded-3xl bg-[var(--card)] p-8 shadow-soft">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Checkout</span>
-              <h1 className="mt-3 font-display text-5xl text-brown">Shipping & payment</h1>
-              <p className="mt-2 text-foreground/75">Complete your order with shipping details and place your purchase.</p>
+          <div className="space-y-6 rounded-3xl bg-card p-8 shadow-soft">
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 text-xs font-medium text-foreground/50 mb-2">
+              {([1, 2, 3] as const).map((s) => (
+                <span key={s} className="flex items-center gap-1">
+                  <span className={`w-6 h-6 rounded-full grid place-items-center text-xs font-bold transition-colors ${
+                    step === s ? "bg-wine text-white" : step > s ? "bg-sage text-white" : "bg-muted text-foreground/50"
+                  }`}>
+                    {step > s ? <CheckCircle className="w-3.5 h-3.5" /> : s}
+                  </span>
+                  <span className={step === s ? "text-foreground" : ""}>
+                    {s === 1 ? "Shipping" : s === 2 ? "Payment" : "Confirm"}
+                  </span>
+                  {s < 3 && <span className="w-6 h-px bg-border mx-1" />}
+                </span>
+              ))}
             </div>
 
-            {successMessage ? (
-              <div className="rounded-3xl bg-[var(--sage)]/15 p-6 text-sm text-[var(--foreground)]">
-                <p className="font-semibold">Order placed successfully!</p>
-                <p className="mt-2">{successMessage}</p>
+            {/* Step 1: Shipping form */}
+            {step === 1 && (
+              <>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Checkout</span>
+                  <h1 className="mt-3 font-display text-4xl text-brown">Shipping details</h1>
+                  <p className="mt-1 text-foreground/75 text-sm">Enter your shipping address to continue.</p>
+                </div>
+                {formErrors.general ? <div className="rounded-3xl bg-red-50 p-4 text-sm text-red-700">{formErrors.general}</div> : null}
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Name</span>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                    {formErrors.name ? <p className="text-xs text-red-400">{formErrors.name}</p> : null}
+                  </label>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Email</span>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                    {formErrors.email ? <p className="text-xs text-red-400">{formErrors.email}</p> : null}
+                  </label>
+                </div>
+                <label className="space-y-2 text-sm text-foreground">
+                  <span>Street address</span>
+                  <input type="text" value={street} onChange={(e) => setStreet(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                  {formErrors.street ? <p className="text-xs text-red-400">{formErrors.street}</p> : null}
+                </label>
+                <div className="grid gap-6 sm:grid-cols-3">
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>City</span>
+                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                    {formErrors.city ? <p className="text-xs text-red-400">{formErrors.city}</p> : null}
+                  </label>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Province</span>
+                    <input type="text" value={province} onChange={(e) => setProvince(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                    {formErrors.province ? <p className="text-xs text-red-400">{formErrors.province}</p> : null}
+                  </label>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Postal code</span>
+                    <input type="text" value={zip} onChange={(e) => setZip(e.target.value)} className="w-full rounded-[var(--radius)] border border-border bg-background px-4 py-3 outline-none" />
+                    {formErrors.zip ? <p className="text-xs text-red-400">{formErrors.zip}</p> : null}
+                  </label>
+                </div>
                 <button
                   type="button"
-                  onClick={() => navigate({ to: "/shop" })}
-                  className="mt-4 inline-flex rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  onClick={() => setStep(2)}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft btn-bounce-hover hover:bg-primary/90"
                 >
-                  Continue shopping
+                  Continue to Payment
                 </button>
+              </>
+            )}
+
+            {/* Step 2: Payment method selection */}
+            {step === 2 && (
+              <>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Checkout</span>
+                  <h1 className="mt-3 font-display text-4xl text-brown">Payment method</h1>
+                  <p className="mt-1 text-foreground/75 text-sm">Choose how you'd like to pay.</p>
+                </div>
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("cash_on_delivery")}
+                    className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
+                      paymentMethod === "cash_on_delivery" ? "border-wine bg-wine/5" : "border-border bg-background hover:border-wine/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">Cash on Delivery</p>
+                        <p className="text-sm text-foreground/70 mt-1">Pay when you receive your order</p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 grid place-items-center ${
+                        paymentMethod === "cash_on_delivery" ? "border-wine" : "border-border"
+                      }`}>
+                        {paymentMethod === "cash_on_delivery" && <div className="w-2.5 h-2.5 rounded-full bg-wine" />}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("gcash")}
+                    className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
+                      paymentMethod === "gcash" ? "border-wine bg-wine/5" : "border-border bg-background hover:border-wine/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">GCash</p>
+                        <p className="text-sm text-foreground/70 mt-1">Pay via GCash and upload payment proof</p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 grid place-items-center ${
+                        paymentMethod === "gcash" ? "border-wine" : "border-border"
+                      }`}>
+                        {paymentMethod === "gcash" && <div className="w-2.5 h-2.5 rounded-full bg-wine" />}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground btn-bounce-hover shadow-soft"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (paymentMethod === "gcash") {
+                        const ok = await handlePlaceOrder();
+                        if (!ok) return;
+                      }
+                      setStep(3);
+                    }}
+                    disabled={createOrderMutation.isPending}
+                    className="inline-flex flex-1 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft btn-bounce-hover hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {createOrderMutation.isPending ? "Processing..." : "Continue to Review"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: Review & payment */}
+            {step === 3 && paymentMethod === "cash_on_delivery" && (
+              <div className="text-center py-10">
+                <Loader2 className="w-8 h-8 animate-spin text-foreground/40 mx-auto mb-4" />
+                <p className="text-foreground/70">Placing your order...</p>
               </div>
-            ) : null}
+            )}
 
-            {formErrors.general ? (
-              <div className="rounded-3xl bg-[#fee2e2] p-4 text-sm text-[#b91c1c]">{formErrors.general}</div>
-            ) : null}
+            {step === 3 && paymentMethod === "gcash" && !orderId && (
+              <div className="text-center py-10">
+                {createOrderMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-8 h-8 animate-spin text-foreground/40 mx-auto mb-4" />
+                    <p className="text-foreground/70">Creating your order...</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-red-600 text-sm mb-4">Failed to create order. Please try again.</p>
+                    {formErrors.general && <p className="text-red-600 text-sm mb-4">{formErrors.general}</p>}
+                    <button
+                      type="button"
+                      onClick={handlePlaceOrder}
+                      className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
+                    >
+                      Retry
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
-            <div className="grid gap-6 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                />
-                {formErrors.name ? <p className="text-xs text-[#f87171]">{formErrors.name}</p> : null}
-              </label>
+            {step === 3 && paymentMethod === "gcash" && orderId && displayOrderId && (
+              <>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">GCash Payment</span>
+                  <h1 className="mt-3 font-display text-3xl text-brown">Pay via GCash</h1>
+                  <p className="mt-1 text-foreground/75 text-sm">Send payment to the GCash account below, then submit your proof.</p>
+                </div>
 
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                />
-                {formErrors.email ? <p className="text-xs text-[#f87171]">{formErrors.email}</p> : null}
-              </label>
-            </div>
+                {formErrors.general ? <div className="rounded-3xl bg-red-50 p-4 text-sm text-red-700">{formErrors.general}</div> : null}
 
-            <label className="space-y-2 text-sm text-[var(--foreground)]">
-              <span>Street address</span>
-              <input
-                type="text"
-                value={street}
-                onChange={(event) => setStreet(event.target.value)}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-              />
-              {formErrors.street ? <p className="text-xs text-[#f87171]">{formErrors.street}</p> : null}
-            </label>
+                {/* GCash Payment Details */}
+                <div className="rounded-2xl bg-background border border-border p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-6 items-start">
+                    <div className="w-40 h-40 bg-blush rounded-xl flex items-center justify-center border-2 border-dashed border-wine/30 shrink-0">
+                      <img
+                        src={GCASH_CONFIG.qrCodeSrc}
+                        alt="GCash QR Code"
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-xs text-wine/60 text-center px-2">QR code placeholder — replace with your actual GCash QR image</span>';
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-3 flex-1">
+                      <div>
+                        <p className="text-xs text-foreground/50 uppercase tracking-wide">GCash Number</p>
+                        <p className="text-lg font-bold text-wine">{GCASH_CONFIG.number}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-foreground/50 uppercase tracking-wide">Account Name</p>
+                        <p className="font-semibold">{GCASH_CONFIG.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-foreground/50 uppercase tracking-wide">Amount to Pay</p>
+                        <p className="text-2xl font-bold text-foreground">{formatPrice(totalAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-foreground/50 uppercase tracking-wide">Your Order ID</p>
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{displayOrderId}</code>
+                          <button
+                            type="button"
+                            onClick={handleCopyOrderId}
+                            className="inline-flex items-center gap-1 text-xs text-wine hover:underline"
+                          >
+                            {copied ? "Copied!" : <><Copy className="w-3 h-3" /> Copy</>}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 p-4 text-xs text-amber-800 space-y-1">
+                    <p className="font-semibold">📌 Important Instructions:</p>
+                    <p>1. Open your GCash app and send the exact amount shown above.</p>
+                    <p>2. In the payment note, include your Order ID: <strong className="font-mono">{displayOrderId}</strong></p>
+                    <p>3. Take a screenshot of the confirmation screen.</p>
+                    <p>4. Fill in the reference number and upload the screenshot below.</p>
+                  </div>
+                </div>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>City</span>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(event) => setCity(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                />
-                {formErrors.city ? <p className="text-xs text-[#f87171]">{formErrors.city}</p> : null}
-              </label>
+                {/* Proof Submission Form */}
+                <div className="rounded-2xl bg-background border border-border p-6 space-y-5">
+                  <h2 className="font-semibold text-foreground">Submit Payment Proof</h2>
 
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>Province</span>
-                <input
-                  type="text"
-                  value={province}
-                  onChange={(event) => setProvince(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                />
-                {formErrors.province ? <p className="text-xs text-[#f87171]">{formErrors.province}</p> : null}
-              </label>
-            </div>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>GCash Reference Number <span className="text-red-500">*</span></span>
+                    <input
+                      type="text"
+                      value={gcashRefNo}
+                      onChange={(e) => { setGcashRefNo(e.target.value); setRefError(null); }}
+                      placeholder="e.g. MFJX9K8L7R"
+                      className="w-full rounded-[var(--radius)] border border-border bg-white px-4 py-3 outline-none font-mono text-sm"
+                    />
+                    {refError ? <p className="text-xs text-red-400">{refError}</p> : null}
+                  </label>
 
-            <div className="grid gap-6 sm:grid-cols-2">
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>Postal code</span>
-                <input
-                  type="text"
-                  value={zip}
-                  onChange={(event) => setZip(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                />
-                {formErrors.zip ? <p className="text-xs text-[#f87171]">{formErrors.zip}</p> : null}
-              </label>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Your Email <span className="text-red-500">*</span></span>
+                    <input
+                      type="email"
+                      value={gcashEmail}
+                      onChange={(e) => setGcashEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      className="w-full rounded-[var(--radius)] border border-border bg-white px-4 py-3 outline-none"
+                    />
+                    {formErrors.gcashEmail ? <p className="text-xs text-red-400">{formErrors.gcashEmail}</p> : null}
+                  </label>
 
-              <label className="space-y-2 text-sm text-[var(--foreground)]">
-                <span>Payment method</span>
-                <select
-                  value={paymentMethod}
-                  onChange={(event) => setPaymentMethod(event.target.value)}
-                  className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] px-4 py-3 outline-none"
-                >
-                  <option value="cash_on_delivery">Cash on delivery</option>
-                </select>
-              </label>
-            </div>
+                  <label className="space-y-2 text-sm text-foreground">
+                    <span>Screenshot of Payment <span className="text-red-500">*</span></span>
+                    <div className="mt-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif,image/webp"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      {screenshotPreview ? (
+                        <div className="relative inline-block">
+                          <img src={screenshotPreview} alt="Screenshot preview" className="max-h-48 rounded-lg border border-border" />
+                          <button
+                            type="button"
+                            onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs grid place-items-center hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center justify-center gap-2 w-full rounded-[var(--radius)] border-2 border-dashed border-border bg-white px-4 py-8 text-sm text-foreground/60 hover:border-wine/50 hover:text-wine transition-colors"
+                        >
+                          <Upload className="w-5 h-5" />
+                          Click to upload screenshot
+                        </button>
+                      )}
+                      {formErrors.screenshot ? <p className="text-xs text-red-400 mt-1">{formErrors.screenshot}</p> : null}
+                    </div>
+                  </label>
+                </div>
 
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={mutation.isPending}
-              className="inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft hover:bg-primary/90 disabled:opacity-50"
-            >
-              {mutation.isPending ? "Placing order..." : "Place order"}
-            </button>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground btn-bounce-hover shadow-soft"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitProof}
+                    disabled={submitProofMutation.isPending || uploadMutation.isPending}
+                    className="inline-flex flex-1 items-center justify-center rounded-full bg-wine px-5 py-3 text-sm font-semibold text-white shadow-soft btn-bounce-hover hover:bg-wine/90 disabled:opacity-50"
+                  >
+                    {submitProofMutation.isPending || uploadMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Submitting...</>
+                    ) : (
+                      "Submit Payment Proof"
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 4: Confirmation */}
+            {step === 4 && (
+              <div className="text-center py-8">
+                <div className="inline-flex w-16 h-16 items-center justify-center rounded-full bg-sage/20 text-sage-deep mb-6">
+                  <CheckCircle className="w-8 h-8" />
+                </div>
+                <h1 className="font-display text-3xl text-brown mb-3">
+                  {paymentMethod === "gcash" ? "Proof Submitted!" : "Order Confirmed!"}
+                </h1>
+                {orderId && displayOrderId && (
+                  <p className="text-sm text-foreground/60 mb-2">
+                    Order ID: <code className="font-mono font-semibold">{displayOrderId}</code>
+                  </p>
+                )}
+                <p className="text-foreground/75 max-w-md mx-auto mb-6 text-sm">
+                  {successMessage}
+                </p>
+                <div className="flex justify-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: "/shop" })}
+                    className="inline-flex rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground btn-bounce-hover shadow-soft"
+                  >
+                    Continue Shopping
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: "/" })}
+                    className="inline-flex rounded-full border border-border bg-background px-6 py-3 text-sm font-semibold text-foreground btn-bounce-hover shadow-soft"
+                  >
+                    Back to Home
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <aside className="space-y-6 rounded-3xl bg-[var(--card)] p-6 shadow-soft">
+          {/* Order Summary Sidebar */}
+          <aside className="space-y-6 rounded-3xl bg-card p-6 shadow-soft self-start">
             <div>
-              <p className="text-sm uppercase tracking-[0.18em] text-[var(--foreground)]/70">Order summary</p>
-              <div className="mt-5 space-y-3 text-sm text-[var(--foreground)]">
-                <div className="flex items-center justify-between">
-                  <span>{itemCount} items</span>
-                  <span>₱{subtotal.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Shipping</span>
-                  <span>₱{shippingFee.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Tax</span>
-                  <span>₱{taxAmount.toLocaleString()}</span>
+              <p className="text-sm uppercase tracking-[0.18em] text-foreground/70">Order summary</p>
+              <div className="mt-5 space-y-3 text-sm text-foreground">
+                  <div className="flex items-center justify-between">
+                    <span>{itemCount} items</span>
+                    <span>{formatPrice(subtotal)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Shipping</span>
+                    <span>{formatPrice(shippingFee)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Tax</span>
+                    <span>{formatPrice(taxAmount)}</span>
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center justify-between border-t border-border pt-5 text-lg font-semibold text-foreground">
+                <span>Total</span>
+                <span>{formatPrice(totalAmount)}</span>
             </div>
-
-            <div className="flex items-center justify-between border-t border-[var(--border)] pt-5 text-lg font-semibold text-[var(--foreground)]">
-              <span>Total</span>
-              <span>₱{totalAmount.toLocaleString()}</span>
+            <div className="rounded-3xl bg-background p-5 text-sm text-foreground/80">
+              <p className="font-semibold">
+                {paymentMethod === "gcash" ? "Pay via GCash." : "Payment is handled at delivery."}
+              </p>
+              <p className="mt-2">
+                {paymentMethod === "gcash"
+                  ? "Send the exact amount to the GCash account shown, then upload your proof."
+                  : "You'll pay in cash when your order arrives."}
+              </p>
             </div>
-
-            <div className="rounded-3xl bg-[var(--background)] p-5 text-sm text-[var(--foreground)]/80">
-              <p className="font-semibold">Payment is handled at delivery.</p>
-              <p className="mt-2">This checkout flow currently uses Cash on Delivery. Stripe integration can be added later.</p>
-            </div>
-
-            <div className="rounded-3xl bg-[var(--background)] p-5 text-sm text-[var(--foreground)]/80">
+            <div className="rounded-3xl bg-background p-5 text-sm text-foreground/80">
               <p className="font-semibold">Need to change your cart?</p>
-              <button
-                type="button"
-                onClick={() => navigate({ to: "/cart" })}
-                className="mt-3 inline-flex rounded-full bg-primary/5 px-4 py-2 text-sm font-semibold text-primary"
-              >
+              <button type="button" onClick={() => navigate({ to: "/cart" })} className="mt-3 inline-flex rounded-full bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
                 Edit cart
               </button>
             </div>

@@ -2,6 +2,7 @@ import { ArrowRight, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
+import { useCurrency } from "@/lib/currency-context";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export const Route = createFileRoute("/cart")({
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/cart")({
 function CartPage() {
   const navigate = useNavigate();
   const { items, itemCount, subtotal, updateQuantity, removeItem, clear } = useCart();
+  const { formatPrice } = useCurrency();
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,7 +66,7 @@ function CartPage() {
                       </div>
                       <div>
                         <h2 className="text-xl font-semibold text-[var(--foreground)]">{item.name}</h2>
-                        <p className="mt-2 text-sm text-[var(--foreground)]/80">₱{item.price.toLocaleString()}</p>
+                        <p className="mt-2 text-sm text-[var(--foreground)]/80">{formatPrice(item.price)}</p>
                         {item.stock_qty != null ? (
                           <p className="mt-3 text-sm text-[var(--foreground)]/70">{item.stock_qty} left in stock</p>
                         ) : null}
@@ -110,21 +112,21 @@ function CartPage() {
                 <div className="mt-5 space-y-3 text-sm text-[var(--foreground)]">
                   <div className="flex items-center justify-between">
                     <span>Subtotal</span>
-                    <span>₱{subtotal.toLocaleString()}</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Shipping</span>
-                    <span>₱{shippingFee.toLocaleString()}</span>
+                    <span>{formatPrice(shippingFee)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Tax</span>
-                    <span>₱{taxAmount.toLocaleString()}</span>
+                    <span>{formatPrice(taxAmount)}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-between border-t border-[var(--border)] pt-5 text-lg font-semibold text-[var(--foreground)]">
                 <span>Total</span>
-                <span>₱{totalAmount.toLocaleString()}</span>
+                <span>{formatPrice(totalAmount)}</span>
               </div>
 
               {!userEmail ? (

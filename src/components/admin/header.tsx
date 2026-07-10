@@ -38,7 +38,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Bell, LogOut, Settings, ShoppingCart, Package, AlertTriangle, LayoutDashboard, Users, BarChart3, Globe, Loader2 } from "lucide-react";
+import { Search, Bell, LogOut, Settings, ShoppingCart, Package, AlertTriangle, LayoutDashboard, Users, BarChart3, Globe, CreditCard, Loader2 } from "lucide-react";
 import { useRouterState, useNavigate, Link } from "@tanstack/react-router";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getAdminNotifications, type AdminNotificationsResponse } from "@/lib/api/supabase.functions";
@@ -85,6 +85,7 @@ const searchPages = [
   { label: "Order Tracking", href: "/admin/orders/tracking", icon: ShoppingCart },
   { label: "Returns", href: "/admin/orders/returns", icon: AlertTriangle },
   { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Payments", href: "/admin/payments", icon: CreditCard },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Website Settings", href: "/admin/website-settings", icon: Globe },
 ];

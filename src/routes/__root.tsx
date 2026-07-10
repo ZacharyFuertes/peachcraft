@@ -14,6 +14,7 @@ import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { CartToastProvider } from "../components/CartToast";
 import { Toaster } from "../components/ui/sonner";
+import { CurrencyProvider } from "@/lib/currency-context";
 
 
 function NotFoundComponent() {
@@ -126,6 +127,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <CurrencyProvider>
       <CartToastProvider>
         {!hideShell && <SiteHeader />}
         {/* pt offsets the fixed navbar: mobile h-14+py-3=80px, desktop h-16+py-3=88px */}
@@ -136,6 +138,7 @@ function RootComponent() {
         {!hideShell && <SiteFooter compact={/^\/shop\/[^/]+$/.test(router.state.location.pathname)} />}
         <Toaster richColors />
       </CartToastProvider>
+      </CurrencyProvider>
     </QueryClientProvider>
   );
 }

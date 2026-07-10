@@ -7,6 +7,8 @@ import logoUrl from "@/assets/icons/logo.svg?url";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getMyOrders } from "@/lib/api/supabase.functions";
 import { getAutocompleteSuggestions } from "@/lib/api/search.functions";
+import { useCurrency } from "@/lib/currency-context";
+import { CURRENCIES } from "@/lib/currency";
 import type { AutocompleteSuggestions } from "@/lib/api/search.functions";
 
 const nav = [
@@ -51,6 +53,7 @@ export function SiteHeader() {
     brands: [],
   });
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { currency, setCurrency, formatPrice } = useCurrency();
   const { location } = useRouterState();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -73,15 +76,19 @@ export function SiteHeader() {
   // ─── Auth state ───────────────────────────────────────────────────────────
   useEffect(() => {
     const supabase = getSupabaseClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
+
+    // Fast session restore: reads localStorage, no network call
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserEmail(session?.user?.email ?? null);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+
+    // Real-time sync for login/logout across tabs
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setUserEmail(session?.user?.email ?? null);
       (async () => {
         try {
           if (session?.user) {
-            const orders = await getMyOrders();
+            const orders = await getMyOrders({ data: { accessToken: session.access_token } });
             if (orders && Array.isArray(orders)) {
               try {
                 window.localStorage.setItem("peachcraft-orders", JSON.stringify(orders));
@@ -177,8 +184,13 @@ export function SiteHeader() {
   }, []);
 
   const handleSignOut = async () => {
+    console.log("[Auth:SignOut] ===== SIGN-OUT START =====");
+
     const supabase = getSupabaseClient();
-    await supabase.auth.signOut();
+    // Use scope: "local" to clear the session client-side only, avoiding
+    // a hanging network request to Supabase's _revokeAllSessions().
+    await supabase.auth.signOut({ scope: "local" });
+
     setUserEmail(null);
     navigate({ to: "/" });
   };
@@ -225,7 +237,10 @@ export function SiteHeader() {
     <>
 
       <header
-        className="fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 py-3"
+        className={cn(
+          "fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 py-3 transition-all duration-300",
+          scrolled ? "shadow-[0_4px_24px_rgba(0,0,0,0.28)]" : "shadow-none"
+        )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
@@ -393,6 +408,17 @@ export function SiteHeader() {
                     </span>
                   </Link>
 
+                  {/* Currency — desktop */}
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value as any)}
+                    className="hidden lg:block rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-background hover:bg-white/20 transition-colors cursor-pointer"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code} className="text-foreground bg-background">{c.code}</option>
+                    ))}
+                  </select>
+
                   {/* Auth — desktop */}
                   {isLoggedIn ? (
                     <div className="hidden lg:flex items-center gap-2 ml-1">
@@ -443,6 +469,19 @@ export function SiteHeader() {
                   </Link>
                 </li>
               ))}
+              {/* Currency — mobile */}
+              <li className="px-4 py-3">
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as any)}
+                  className="w-full rounded-2xl bg-white/10 px-4 py-3 text-base font-semibold text-background cursor-pointer"
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code} className="text-foreground bg-background">{c.code} — {c.label}</option>
+                  ))}
+                </select>
+              </li>
+
               <li className="pt-2 border-t border-border mt-4">
                 {isLoggedIn ? (
                   <button
@@ -586,7 +625,7 @@ export function SiteHeader() {
 
                               {/* Price */}
                               <span className="text-sm font-bold text-foreground shrink-0">
-                                ₱{p.price.toLocaleString("en-PH")}
+                                {formatPrice(p.price)}
                               </span>
                             </button>
                           </li>

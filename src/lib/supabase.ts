@@ -1,5 +1,5 @@
-import { createClient, type SupabaseClient, type SupabaseClientOptions } from "@supabase/supabase-js";
-import { createBrowserClient, createServerClient } from "@supabase/ssr";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 
 const getClientEnv = () => {
   const url =
@@ -13,13 +13,9 @@ const getClientEnv = () => {
   return { url, anonKey };
 };
 
-let supabaseClient: SupabaseClient | null = null;
+let serverSupabaseClient: SupabaseClient | null = null;
 
-const createSupabaseClient = (): SupabaseClient => {
-  if (supabaseClient) {
-    return supabaseClient;
-  }
-
+export function getSupabaseClient(): SupabaseClient {
   const { url, anonKey } = getClientEnv();
 
   if (!url || !anonKey) {
@@ -29,15 +25,27 @@ const createSupabaseClient = (): SupabaseClient => {
   }
 
   if (typeof window !== "undefined") {
-    supabaseClient = createBrowserClient(url, anonKey);
-  } else {
-    supabaseClient = createClient(url, anonKey);
+    // Browser: use createClient with localStorage (simpler than @supabase/ssr's createBrowserClient).
+    // Store on window to prevent SSR module-scope leakage from Vinxi shared caching.
+    if (!(window as any).__peachcraft_supabase) {
+      (window as any).__peachcraft_supabase = createClient(url, anonKey, {
+        auth: {
+          flowType: "pkce",
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          persistSession: true,
+          storage: window.localStorage,
+        },
+      });
+    }
+    return (window as any).__peachcraft_supabase;
   }
-  return supabaseClient;
-};
 
-export function getSupabaseClient() {
-  return createSupabaseClient();
+  // Server: module-level cache (separate module graph from client bundle)
+  if (!serverSupabaseClient) {
+    serverSupabaseClient = createClient(url, anonKey);
+  }
+  return serverSupabaseClient;
 }
 
 export type Product = {

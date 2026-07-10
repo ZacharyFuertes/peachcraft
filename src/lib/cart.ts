@@ -74,8 +74,18 @@ function makePersistableCartItem(item: CartItem): PersistableCartItem {
   };
 }
 
+async function getSessionAccessToken(): Promise<string | undefined> {
+  if (!isBrowser()) return undefined;
+  const supabase = getSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return undefined;
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? undefined;
+}
+
 async function fetchServerCartItems(): Promise<CartItem[]> {
-  const response = await getCartForUser({ data: {} });
+  const accessToken = await getSessionAccessToken();
+  const response = await getCartForUser({ data: { accessToken } });
   return Array.isArray((response as ServerCartResponse).items)
     ? (response as ServerCartResponse).items
     : [];
@@ -159,10 +169,11 @@ export function useCart() {
   const mergeLocalCartWithServer = useCallback(async (localItems: CartItem[]) => {
     try {
       console.log("[Cart] Merging local cart with server. Local items:", localItems.length);
+      const accessToken = await getSessionAccessToken();
       const serverItems = localItems.length
         ? await (async () => {
             console.log("[Cart] Sending local items to server for merge");
-            await saveCartForUser({ data: { items: localItems.map(makePersistableCartItem) } });
+            await saveCartForUser({ data: { items: localItems.map(makePersistableCartItem), accessToken } });
             return fetchServerCartItems();
           })()
         : await fetchServerCartItems();
@@ -178,9 +189,8 @@ export function useCart() {
   const syncAddItem = useCallback(
     async (item: PersistableCartItem) => {
       try {
-        const supabase = getSupabaseClient();
-        const { data: authData } = await supabase.auth.getUser();
-        if (!authData.user) {
+        const accessToken = await getSessionAccessToken();
+        if (!accessToken) {
           console.log("[Cart] Not authenticated, skipping server sync for add");
           return;
         }
@@ -195,6 +205,7 @@ export function useCart() {
               ...currentItems.map(makePersistableCartItem),
               item,
             ],
+            accessToken,
           },
         });
         console.log("[Cart] Item added successfully, refreshing cart");
@@ -209,16 +220,15 @@ export function useCart() {
   const syncUpdateCartItem = useCallback(
     async (_itemCartId: string, _qty: number) => {
       try {
-        const supabase = getSupabaseClient();
-        const { data: authData } = await supabase.auth.getUser();
-        if (!authData.user) {
+        const accessToken = await getSessionAccessToken();
+        if (!accessToken) {
           console.log("[Cart] Not authenticated, skipping server sync for update");
           return;
         }
 
         const currentItems = readCartStorage();
         console.log("[Cart] Syncing cart to server after update");
-        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem) } });
+        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem), accessToken } });
         console.log("[Cart] Cart synced successfully");
         await refreshServerCart();
       } catch (error) {
@@ -231,16 +241,15 @@ export function useCart() {
   const syncRemoveCartItem = useCallback(
     async (_itemCartId: string) => {
       try {
-        const supabase = getSupabaseClient();
-        const { data: authData } = await supabase.auth.getUser();
-        if (!authData.user) {
+        const accessToken = await getSessionAccessToken();
+        if (!accessToken) {
           console.log("[Cart] Not authenticated, skipping server sync for remove");
           return;
         }
 
         const currentItems = readCartStorage();
         console.log("[Cart] Syncing cart to server after removal");
-        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem) } });
+        await saveCartForUser({ data: { items: currentItems.map(makePersistableCartItem), accessToken } });
         console.log("[Cart] Cart synced after removal successfully");
         await refreshServerCart();
       } catch (error) {
@@ -252,15 +261,14 @@ export function useCart() {
 
   const syncClearCart = useCallback(async () => {
     try {
-      const supabase = getSupabaseClient();
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
+      const accessToken = await getSessionAccessToken();
+      if (!accessToken) {
         console.log("[Cart] Not authenticated, skipping server sync for clear");
         return;
       }
 
       console.log("[Cart] Clearing cart on server");
-      await saveCartForUser({ data: { items: [] } });
+      await saveCartForUser({ data: { items: [], accessToken } });
       console.log("[Cart] Cart cleared successfully");
       writeCartStorage([]);
       setItems([]);

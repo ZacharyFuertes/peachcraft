@@ -22,6 +22,7 @@ import { useCart } from "@/lib/cart";
 import { useCartToast } from "@/components/CartToast";
 import { getProductById, getAllProducts } from "@/lib/api/supabase.functions";
 import { ProductCard } from "@/components/ProductCard";
+import { useCurrency } from "@/lib/currency-context";
 
 export const Route = createFileRoute("/shop/$id")({
   head: () => ({
@@ -54,6 +55,7 @@ function ProductDetailPage() {
     queryFn: getAllProducts,
   });
 
+  const { formatPrice } = useCurrency();
   const [liked, setLiked] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [added, setAdded] = useState(false);
@@ -297,7 +299,7 @@ function ProductDetailPage() {
                   isSoldOut && "text-foreground/40 line-through",
                 )}
               >
-                ₱{product.price.toLocaleString("en-PH", { minimumFractionDigits: 2 })} PHP
+                {formatPrice(product.price)}
               </p>
               {isSoldOut && (
                 <span className="inline-block rounded-full bg-red-100 text-red-700 text-[10px] font-bold px-3 py-1 uppercase tracking-wide">
@@ -452,7 +454,7 @@ function ProductDetailPage() {
         {relatedProducts.length > 0 && (
           <div className="mt-20 pt-16 border-t border-border/80">
             <h2 className="font-display text-3xl text-brown font-bold mb-8">Related products</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-1.5 sm:gap-x-2 gap-y-3 sm:gap-y-4">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
