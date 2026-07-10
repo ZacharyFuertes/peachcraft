@@ -1,5 +1,4 @@
 import { c as createClient } from "./supabase__supabase-js.mjs";
-import { d as distExports } from "./cookie.mjs";
 const VERSION = "0.10.3";
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.document !== "undefined";
@@ -250,18 +249,6 @@ function createStorageFromOptions(options, isServerClient) {
   const removedItems = {};
   let getAll;
   let setAll;
-  const documentCookieGetAll = () => {
-    const parsed = distExports.parse(document.cookie);
-    return Object.keys(parsed).map((name) => ({
-      name,
-      value: parsed[name] ?? ""
-    }));
-  };
-  const documentCookieSetAll = (setCookies) => {
-    setCookies.forEach(({ name, value, options: options2 }) => {
-      document.cookie = distExports.serialize(name, value, options2);
-    });
-  };
   if (cookies) {
     if ("get" in cookies) {
       const getWithHints = async (keyHints) => {
@@ -291,129 +278,25 @@ function createStorageFromOptions(options, isServerClient) {
             }
           }
         };
-      } else if (isServerClient) {
+      } else {
         setAll = async () => {
           console.warn("@supabase/ssr: createServerClient was configured without set and remove cookie methods, but the client needs to set cookies. This can lead to issues such as random logouts, early session termination or increased token refresh requests. If in NextJS, check your middleware.ts file, route handlers and server actions for correctness. Consider switching to the getAll and setAll cookie methods instead of get, set and remove which are deprecated and can be difficult to use correctly.");
         };
-      } else {
-        throw new Error("@supabase/ssr: createBrowserClient requires configuring a getAll and setAll cookie method (deprecated: alternatively both get, set and remove can be used)");
       }
     } else if ("getAll" in cookies) {
       getAll = async () => await cookies.getAll();
       if ("setAll" in cookies) {
         setAll = cookies.setAll;
-      } else if (isServerClient) {
+      } else {
         setAll = async () => {
           console.warn("@supabase/ssr: createServerClient was configured without the setAll cookie method, but the client needs to set cookies. This can lead to issues such as random logouts, early session termination or increased token refresh requests. If in NextJS, check your middleware.ts file, route handlers and server actions for correctness.");
         };
-      } else {
-        throw new Error("@supabase/ssr: createBrowserClient requires configuring both getAll and setAll cookie methods (deprecated: alternatively both get, set and remove can be used)");
       }
-    } else if (!isServerClient && isBrowser()) {
-      getAll = () => documentCookieGetAll();
-      setAll = documentCookieSetAll;
     } else {
-      throw new Error(`@supabase/ssr: ${isServerClient ? "createServerClient" : "createBrowserClient"} requires configuring getAll and setAll cookie methods (deprecated: alternatively use get, set and remove).${isBrowser() ? " As this is called in a browser runtime, consider removing the cookies option object to use the document.cookie API automatically." : ""}`);
+      throw new Error(`@supabase/ssr: ${"createServerClient"} requires configuring getAll and setAll cookie methods (deprecated: alternatively use get, set and remove).${isBrowser() ? " As this is called in a browser runtime, consider removing the cookies option object to use the document.cookie API automatically." : ""}`);
     }
-  } else if (!isServerClient && isBrowser()) {
-    getAll = () => documentCookieGetAll();
-    setAll = documentCookieSetAll;
-  } else if (isServerClient) {
-    throw new Error("@supabase/ssr: createServerClient must be initialized with cookie options that specify getAll and setAll functions (deprecated, not recommended: alternatively use get, set and remove)");
   } else {
-    getAll = () => {
-      return [];
-    };
-    setAll = () => {
-      throw new Error("@supabase/ssr: createBrowserClient in non-browser runtimes (including Next.js pre-rendering mode) was not initialized cookie options that specify getAll and setAll functions (deprecated: alternatively use get, set and remove), but they were needed");
-    };
-  }
-  if (!isServerClient) {
-    return {
-      getAll,
-      // for type consistency
-      setAll,
-      // for type consistency
-      setItems,
-      // for type consistency
-      removedItems,
-      // for type consistency
-      storage: {
-        isServer: false,
-        getItem: async (key) => {
-          const allCookies = await getAll([key]);
-          const chunkedCookie = await combineChunks(key, async (chunkName) => {
-            const cookie = allCookies?.find(({ name }) => name === chunkName) || null;
-            if (!cookie) {
-              return null;
-            }
-            return cookie.value;
-          });
-          if (!chunkedCookie) {
-            return null;
-          }
-          return decodeChunkedCookieValue(chunkedCookie);
-        },
-        setItem: async (key, value) => {
-          const allCookies = await getAll([key]);
-          const cookieNames = allCookies?.map(({ name }) => name) || [];
-          const removeCookies = new Set(cookieNames.filter((name) => isChunkLike(name, key)));
-          let encoded = value;
-          if (cookieEncoding === "base64url") {
-            encoded = BASE64_PREFIX + stringToBase64URL(value);
-          }
-          const setCookies = createChunks(key, encoded);
-          setCookies.forEach(({ name }) => {
-            removeCookies.delete(name);
-          });
-          const removeCookieOptions = {
-            ...DEFAULT_COOKIE_OPTIONS,
-            ...options?.cookieOptions,
-            maxAge: 0
-          };
-          const setCookieOptions = {
-            ...DEFAULT_COOKIE_OPTIONS,
-            ...options?.cookieOptions,
-            maxAge: DEFAULT_COOKIE_OPTIONS.maxAge
-          };
-          delete removeCookieOptions.name;
-          delete setCookieOptions.name;
-          const allToSet = [
-            ...[...removeCookies].map((name) => ({
-              name,
-              value: "",
-              options: removeCookieOptions
-            })),
-            ...setCookies.map(({ name, value: value2 }) => ({
-              name,
-              value: value2,
-              options: setCookieOptions
-            }))
-          ];
-          if (allToSet.length > 0) {
-            await setAll(allToSet, {});
-          }
-        },
-        removeItem: async (key) => {
-          const allCookies = await getAll([key]);
-          const cookieNames = allCookies?.map(({ name }) => name) || [];
-          const removeCookies = cookieNames.filter((name) => isChunkLike(name, key));
-          const removeCookieOptions = {
-            ...DEFAULT_COOKIE_OPTIONS,
-            ...options?.cookieOptions,
-            maxAge: 0
-          };
-          delete removeCookieOptions.name;
-          if (removeCookies.length > 0) {
-            await setAll(removeCookies.map((name) => ({
-              name,
-              value: "",
-              options: removeCookieOptions
-            })), {});
-          }
-        }
-      }
-    };
+    throw new Error("@supabase/ssr: createServerClient must be initialized with cookie options that specify getAll and setAll functions (deprecated, not recommended: alternatively use get, set and remove)");
   }
   return {
     getAll,
@@ -564,43 +447,6 @@ function warnIfUsingDeprecatedAuthHelpersPackage() {
 ╚════════════════════════════════════════════════════════════════════════════╝
     `);
 }
-let cachedBrowserClient;
-function createBrowserClient(supabaseUrl, supabaseKey, options) {
-  warnIfUsingDeprecatedAuthHelpersPackage();
-  const shouldUseSingleton = isBrowser();
-  if (shouldUseSingleton && cachedBrowserClient) {
-    return cachedBrowserClient;
-  }
-  const { storage } = createStorageFromOptions({
-    ...options,
-    cookieEncoding: "base64url"
-  }, false);
-  const client = createClient(supabaseUrl, supabaseKey, {
-    // TODO: resolve type error
-    ...options,
-    global: {
-      ...options?.global,
-      headers: {
-        ...options?.global?.headers,
-        "X-Client-Info": `supabase-ssr/${VERSION} createBrowserClient`
-      }
-    },
-    auth: {
-      ...options?.auth,
-      ...null,
-      flowType: "pkce",
-      autoRefreshToken: isBrowser(),
-      detectSessionInUrl: isBrowser(),
-      persistSession: true,
-      storage,
-      ...null
-    }
-  });
-  if (shouldUseSingleton) {
-    cachedBrowserClient = client;
-  }
-  return client;
-}
 function createServerClient(supabaseUrl, supabaseKey, options) {
   warnIfUsingDeprecatedAuthHelpersPackage();
   if (!supabaseUrl || !supabaseKey) {
@@ -613,7 +459,7 @@ https://supabase.com/dashboard/project/_/settings/api`);
   const { storage, getAll, setAll, setItems, removedItems } = createStorageFromOptions({
     ...options,
     cookieEncoding: options?.cookieEncoding ?? "base64url"
-  }, true);
+  });
   const client = createClient(supabaseUrl, supabaseKey, {
     // TODO: resolve type error
     ...options,
@@ -650,6 +496,5 @@ https://supabase.com/dashboard/project/_/settings/api`);
   return client;
 }
 export {
-  createBrowserClient as a,
   createServerClient as c
 };

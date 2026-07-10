@@ -6,10 +6,11 @@ import { getAllProducts } from "@/lib/api/supabase.functions";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useProductFilters } from "@/hooks/useProductFilters";
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
-import { useCurrency } from "@/lib/currency-context";
-import { CURRENCIES } from "@/lib/currency";
-import { SlidersHorizontal, ChevronDown, X } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import type { ProductAvailabilityFilter, ProductSortOption } from "@/hooks/useProductFilters";
 import type { Product } from "@/lib/supabase";
 
@@ -52,23 +53,27 @@ const AVAILABILITY_OPTIONS: { value: ProductAvailabilityFilter; label: string }[
 
 const SORT_OPTIONS: { value: ProductSortOption; label: string }[] = [
   { value: "newest-first", label: "Featured" },
+  { value: "newest-first", label: "Most relevant" },
+  { value: "newest-first", label: "Best selling" },
   { value: "name-asc", label: "Alphabetically, A–Z" },
   { value: "name-desc", label: "Alphabetically, Z–A" },
   { value: "price-asc", label: "Price, low to high" },
   { value: "price-desc", label: "Price, high to low" },
+  { value: "date-old-to-new", label: "Date, old to new" },
+  { value: "newest-first", label: "Date, new to old" },
 ];
 
 function ShopPage() {
   const [isAdminPreview, setIsAdminPreview] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
   const { data: all, isLoading, error } = useQuery(allProductsQuery);
-  const { currency, setCurrency } = useCurrency();
 
   const { filteredProducts, productCount, setAvailabilityFilter, setSortOption, availabilityFilter, sortOption } =
     useProductFilters(all ?? []);
-
-  const activeFilterCount = availabilityFilter !== "all" ? 1 : 0;
+  const [selectedSortLabel, setSelectedSortLabel] = useState("Featured");
+  const products = all ?? [];
+  const inStockCount = products.filter((p) => (p.stock_qty ?? 0) > 0).length;
+  const outOfStockCount = products.filter((p) => (p.stock_qty ?? 0) <= 0).length;
 
   useEffect(() => {
     let mounted = true;
@@ -107,110 +112,113 @@ function ShopPage() {
 
         {/* ── Filter / Sort bar ── */}
         {!isLoading && (
-          <>
-            <div className="shop-filterbar">
-              {/* Row 1: Filter toggle + active chip (left) | Count (right) */}
-              <div className="shop-filterbar-row">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    id="shop-filter-toggle"
-                    type="button"
-                    onClick={() => setShowFilters((v) => !v)}
-                    aria-expanded={showFilters}
-                    className={cn("shop-filter-btn", showFilters && "shop-filter-btn--active")}
-                  >
-                    <SlidersHorizontal className="w-4 h-4 shrink-0" />
-                    <span>Filter</span>
-                    {activeFilterCount > 0 && (
-                      <span className="shop-filter-count">{activeFilterCount}</span>
-                    )}
-                    <ChevronDown
-                      className={cn(
-                        "w-3.5 h-3.5 shrink-0 transition-transform duration-200",
-                        showFilters ? "rotate-180" : "rotate-0"
-                      )}
-                    />
-                  </button>
-
-                  {/* Quick-clear active filter chip */}
+          <div className="shop-controls-bar">
+            {/* Left: Filter trigger */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="shop-controls-trigger shop-controls-trigger--text"
+                >
+                  <span className="text-foreground/60">Filter:</span>
+                  <span className="text-primary font-medium">Availability</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="w-64 p-0"
+              >
+                <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                  <span className="text-xs text-foreground/50">
+                    {availabilityFilter !== "all" ? "1 selected" : "0 selected"}
+                  </span>
                   {availabilityFilter !== "all" && (
                     <button
                       type="button"
                       onClick={() => setAvailabilityFilter("all")}
-                      className="shop-active-filter-chip"
+                      className="text-xs underline text-foreground/60 hover:text-foreground"
                     >
-                      {AVAILABILITY_OPTIONS.find((o) => o.value === availabilityFilter)?.label}
-                      <X className="w-3 h-3" />
+                      Reset
                     </button>
                   )}
                 </div>
-
-                <span className="text-xs text-foreground/45 ml-auto shrink-0">
-                  {productCount} {productCount === 1 ? "product" : "products"}
-                </span>
-              </div>
-
-              {/* Row 2: Sort + Currency (full width on mobile, right-aligned on desktop) */}
-              <div className="shop-filterbar-row shop-filterbar-row--controls">
-                {/* Currency — hidden on mobile, shown sm+ (already in header menu) */}
-                <select
-                  id="shop-currency-select"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as Parameters<typeof setCurrency>[0])}
-                  className="shop-sort-select hidden sm:block"
-                  aria-label="Select currency"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.code}</option>
+                <div className="border-t" />
+                <div className="p-2 space-y-1">
+                  {AVAILABILITY_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded cursor-pointer hover:bg-accent text-sm"
+                    >
+                      <Checkbox
+                        checked={availabilityFilter === opt.value}
+                        onCheckedChange={() => {
+                          if (availabilityFilter === opt.value) {
+                            setAvailabilityFilter("all");
+                          } else {
+                            setAvailabilityFilter(opt.value);
+                          }
+                        }}
+                      />
+                      <span className="flex-1">{opt.label}</span>
+                      <span className="text-xs text-foreground/50 tabular-nums">
+                        {opt.value === "in-stock" ? inStockCount : outOfStockCount}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
+              </PopoverContent>
+            </Popover>
 
-                {/* Sort — full width on mobile */}
-                <select
-                  id="shop-sort-select"
-                  value={sortOption}
-                  onChange={(e) => setSortOption(e.target.value as ProductSortOption)}
-                  className="shop-sort-select shop-sort-select--full-mobile"
-                  aria-label="Sort products"
-                >
-                  {SORT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* ── Expandable filter row ── */}
-            {showFilters && (
-              <div
-                className="shop-filter-row"
-                role="group"
-                aria-label="Availability filter"
-              >
-                <span className="text-xs font-bold uppercase tracking-widest text-foreground/40 mr-1 hidden sm:inline">
-                  Availability
-                </span>
-                {AVAILABILITY_OPTIONS.map((opt) => (
+            {/* Right: Sort trigger + product count */}
+            <div className="flex items-center gap-3 ml-auto">
+              <Popover>
+                <PopoverTrigger asChild>
                   <button
-                    key={opt.value}
                     type="button"
-                    id={`shop-filter-${opt.value}`}
-                    onClick={() => setAvailabilityFilter(opt.value)}
-                    className={cn(
-                      "shop-filter-pill",
-                      availabilityFilter === opt.value && "shop-filter-pill--active"
-                    )}
+                    className="shop-controls-trigger shop-controls-trigger--select"
                   >
-                    {opt.label}
+                    <span className="text-foreground/60">Sort by:</span>
+                    <span className="font-medium text-foreground">
+                      {selectedSortLabel}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-foreground/40 shrink-0" />
                   </button>
-                ))}
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  sideOffset={4}
+                  className="w-56 p-0"
+                >
+                  <div className="py-1">
+                    {SORT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                          setSortOption(opt.value);
+                          setSelectedSortLabel(opt.label);
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-sm transition-colors",
+                          selectedSortLabel === opt.label
+                            ? "bg-primary text-primary-foreground font-medium"
+                            : "text-foreground hover:bg-accent"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
-                <span className="text-sm text-foreground/50 sm:hidden ml-auto">
-                  {productCount} {productCount === 1 ? "product" : "products"}
-                </span>
-              </div>
-            )}
-          </>
+              <span className="text-sm text-foreground/50 whitespace-nowrap">
+                {productCount} {productCount === 1 ? "product" : "products"}
+              </span>
+            </div>
+          </div>
         )}
 
         {/* ── Product grid ── */}
@@ -240,194 +248,43 @@ function ShopPage() {
 
       {/* ── Shop page scoped styles ── */}
       <style>{`
-        /* ── Filter bar wrapper ──
-           Two-row stacked layout on mobile, single row on desktop */
-        .shop-filterbar {
+        /* ── Controls bar ── */
+        .shop-controls-bar {
           display: flex;
-          flex-direction: column;
-          gap: 8px;
+          align-items: center;
+          gap: 12px;
           margin-top: 8px;
           padding-bottom: 14px;
           border-bottom: 1px solid oklch(0.92 0.02 80);
         }
-        @media (min-width: 640px) {
-          .shop-filterbar {
-            flex-direction: row;
-            align-items: center;
-            gap: 10px;
-          }
-        }
 
-        /* Each row within the filterbar */
-        .shop-filterbar-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          width: 100%;
-        }
-        @media (min-width: 640px) {
-          .shop-filterbar-row {
-            width: auto;
-          }
-          /* Controls row pushes to the right on desktop */
-          .shop-filterbar-row--controls {
-            margin-left: auto;
-          }
-        }
-
-        /* ── Filter toggle button ── */
-        .shop-filter-btn {
+        /* ── Control triggers ── */
+        .shop-controls-trigger {
           display: inline-flex;
           align-items: center;
+          gap: 4px;
+          font-family: inherit;
+          font-size: 13px;
+          cursor: pointer;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .shop-controls-trigger--text {
+          background: none;
+          border: none;
+          padding: 0;
+          color: inherit;
+        }
+        .shop-controls-trigger--select {
+          background: none;
+          border: 1.5px solid oklch(0.87 0.03 150);
+          border-radius: 8px;
+          padding: 7px 11px;
           gap: 6px;
-          padding: 8px 14px;
-          border: 1.5px solid oklch(0.87 0.03 150);
-          border-radius: 8px;
-          background: transparent;
-          font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          color: oklch(0.28 0.06 55);
-          cursor: pointer;
-          transition: background 200ms, border-color 200ms, color 200ms;
-          white-space: nowrap;
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
+          transition: border-color 200ms;
         }
-        .shop-filter-btn:hover {
-          background: oklch(0.94 0.05 150);
-          border-color: oklch(0.65 0.07 150);
-        }
-        .shop-filter-btn--active {
-          background: oklch(0.32 0.05 150);
-          border-color: oklch(0.32 0.05 150);
-          color: oklch(0.99 0.005 80);
-        }
-        .shop-filter-btn--active:hover {
-          background: oklch(0.28 0.05 150);
-          border-color: oklch(0.28 0.05 150);
-          color: oklch(0.99 0.005 80);
-        }
-
-        /* Active filter count badge */
-        .shop-filter-count {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 18px;
-          height: 18px;
-          border-radius: 999px;
-          background: oklch(0.85 0.09 20);
-          color: oklch(0.32 0.1 25);
-          font-size: 10px;
-          font-weight: 800;
-          padding: 0 4px;
-        }
-
-        /* Quick-clear chip for active filter */
-        .shop-active-filter-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 5px 10px 5px 12px;
-          border-radius: 999px;
-          background: oklch(0.94 0.05 150);
-          border: 1.5px solid oklch(0.75 0.07 150);
-          font-size: 12px;
-          font-weight: 600;
-          color: oklch(0.32 0.05 150);
-          cursor: pointer;
-          transition: background 180ms, opacity 180ms;
-          white-space: nowrap;
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .shop-active-filter-chip:hover {
-          background: oklch(0.88 0.07 150);
-        }
-
-        /* ── Sort / Currency select ── */
-        .shop-sort-select {
-          appearance: none;
-          -webkit-appearance: none;
-          border: 1.5px solid oklch(0.87 0.03 150);
-          border-radius: 8px;
-          padding: 8px 30px 8px 11px;
-          font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          color: oklch(0.28 0.06 55);
-          background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 10px center;
-          cursor: pointer;
-          transition: border-color 200ms, background-color 200ms;
-          white-space: nowrap;
-          min-width: 0;
-          touch-action: manipulation;
-        }
-        /* Sort takes full width on mobile so it's easy to tap */
-        .shop-sort-select--full-mobile {
-          flex: 1 1 0;
-        }
-        @media (min-width: 640px) {
-          .shop-sort-select--full-mobile {
-            flex: none;
-          }
-        }
-        .shop-sort-select:hover {
-          border-color: oklch(0.65 0.07 150);
-          background-color: oklch(0.97 0.02 150);
-        }
-        .shop-sort-select:focus {
-          outline: 2px solid oklch(0.58 0.08 150);
-          outline-offset: 2px;
-        }
-
-        /* ── Expandable filter pill row ── */
-        .shop-filter-row {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-          padding: 10px 0 10px;
-          border-bottom: 1px solid oklch(0.92 0.02 80);
-          animation: shop-filter-row-open 200ms ease forwards;
-        }
-        @keyframes shop-filter-row-open {
-          from { opacity: 0; transform: translateY(-6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Filter pills */
-        .shop-filter-pill {
-          padding: 7px 16px;
-          border-radius: 999px;
-          border: 1.5px solid oklch(0.87 0.04 80);
-          font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          color: oklch(0.38 0.05 55);
-          background: #fff;
-          cursor: pointer;
-          transition: background 180ms, border-color 180ms, color 180ms, transform 120ms;
-          white-space: nowrap;
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-        }
-        .shop-filter-pill:hover {
-          background: oklch(0.94 0.05 150);
-          border-color: oklch(0.7 0.07 150);
-          color: oklch(0.28 0.05 150);
-        }
-        .shop-filter-pill--active {
-          background: oklch(0.32 0.05 150);
-          border-color: oklch(0.32 0.05 150);
-          color: oklch(0.99 0.005 80);
-        }
-        .shop-filter-pill--active:hover {
-          background: oklch(0.28 0.05 150);
-        }
-        .shop-filter-pill:active {
-          transform: scale(0.96);
+        .shop-controls-trigger--select:hover {
+          border-color: oklch(0.6 0.06 150);
         }
 
         /* ── Product grid ── */

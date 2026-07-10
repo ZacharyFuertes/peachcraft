@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 export type ProductAvailabilityFilter = "all" | "in-stock" | "out-of-stock";
-export type ProductSortOption = "name-asc" | "name-desc" | "newest-first" | "price-asc" | "price-desc";
+export type ProductSortOption = "name-asc" | "name-desc" | "newest-first" | "price-asc" | "price-desc" | "date-old-to-new";
 
 export type ProductInventoryLike = {
   id: string;
@@ -72,6 +72,10 @@ export function useProductFilters<TProduct extends ProductInventoryLike>(
 
       const leftTimestamp = left.created_at ? new Date(left.created_at).getTime() : 0;
       const rightTimestamp = right.created_at ? new Date(right.created_at).getTime() : 0;
+
+      if (sortOption === "date-old-to-new") {
+        return leftTimestamp - rightTimestamp;
+      }
 
       return rightTimestamp - leftTimestamp;
     });

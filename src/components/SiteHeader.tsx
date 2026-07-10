@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Search, ShoppingBag, Menu, X, UserCircle2, ArrowRight, Tag, Package } from "lucide-react";
+import { Search, ShoppingBag, Menu, X, UserCircle2, ArrowRight, Tag, Package, Check, ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,16 @@ import { getMyOrders } from "@/lib/api/supabase.functions";
 import { getAutocompleteSuggestions } from "@/lib/api/search.functions";
 import { useCurrency } from "@/lib/currency-context";
 import { CURRENCIES } from "@/lib/currency";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { AutocompleteSuggestions } from "@/lib/api/search.functions";
 
 const nav = [
@@ -223,7 +233,6 @@ export function SiteHeader() {
     prevItemCountRef.current = itemCount;
   }, [itemCount]);
 
-  const initial = userEmail?.[0]?.toUpperCase() ?? "?";
   const isLoggedIn = !!userEmail;
 
   const hasSuggestions =
@@ -380,62 +389,97 @@ export function SiteHeader() {
                   })}
                 </nav>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  {/* Currency — desktop */}
+                  <div className="hidden lg:block">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-background/80 hover:text-background transition-colors cursor-pointer"
+                        >
+                          {currency}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        sideOffset={8}
+                        className="w-64 p-0"
+                      >
+                        <Command>
+                          <CommandInput placeholder="Search currencies..." />
+                          <CommandList>
+                            <CommandEmpty>No currency found.</CommandEmpty>
+                            <CommandGroup>
+                              {CURRENCIES.map((c) => (
+                                <CommandItem
+                                  key={c.code}
+                                  value={`${c.label} ${c.code}`}
+                                  onSelect={() => setCurrency(c.code as any)}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>
+                                      {c.label}{" | "}{c.code} {c.symbol}
+                                    </span>
+                                    {currency === c.code && (
+                                      <Check className="w-4 h-4 text-primary shrink-0" />
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
                   {/* Search button */}
                   <button
                     type="button"
                     aria-label="Search"
                     onClick={openSearch}
-                    className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors btn-bounce-hover shrink-0"
+                    className="text-background/80 hover:text-background transition-colors shrink-0"
                   >
-                    <Search className="w-4 h-4 text-background" />
+                    <Search className="w-5 h-5" />
                   </button>
-
-                  {/* Cart */}
-                  <Link
-                    to="/cart"
-                    aria-label={`Cart, ${itemCount} items`}
-                    className="grid place-items-center w-10 h-10 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors relative btn-bounce-hover shrink-0"
-                  >
-                    <ShoppingBag
-                      className={cn(
-                        "w-4 h-4 transition-transform text-background",
-                        cartBouncing && "animate-cart-bounce",
-                      )}
-                    />
-                    <span className="absolute -top-1 -right-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-blush text-[0.65rem] font-bold text-white px-1 shadow-soft">
-                      {itemCount}
-                    </span>
-                  </Link>
-
-                  {/* Currency — desktop */}
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value as any)}
-                    className="hidden lg:block rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-background hover:bg-white/20 transition-colors cursor-pointer"
-                  >
-                    {CURRENCIES.map((c) => (
-                      <option key={c.code} value={c.code} className="text-foreground bg-background">{c.code}</option>
-                    ))}
-                  </select>
 
                   {/* Auth — desktop */}
                   {isLoggedIn ? (
-                    <div className="hidden lg:flex items-center gap-2 ml-1">
-                      <div
-                        title={userEmail ?? ""}
-                        className="flex h-9 w-9 items-center justify-center rounded-full bg-blush text-blush-foreground text-sm font-semibold select-none border border-white/20"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          title={userEmail ?? ""}
+                          className="text-background/80 hover:text-background transition-colors cursor-pointer"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                            <path d="M20 21a8 8 0 0 0-16 0" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        sideOffset={8}
+                        className="min-w-48"
                       >
-                        {initial}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleSignOut}
-                        className="hidden lg:inline-flex items-center justify-center px-4 py-2 border border-white/20 bg-white/10 rounded-full text-xs font-semibold text-background hover:bg-white/20 transition-colors btn-bounce-hover"
-                      >
-                        Sign out
-                      </button>
-                    </div>
+                        <DropdownMenuLabel className="font-normal text-xs text-foreground/60">
+                          {userEmail}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to="/profile" className="cursor-pointer">
+                            Edit Profile
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                          Sign out
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : (
                     <Link
                       to="/login"
@@ -446,6 +490,25 @@ export function SiteHeader() {
                       Sign In
                     </Link>
                   )}
+
+                  {/* Cart */}
+                  <Link
+                    to="/cart"
+                    aria-label={`Cart, ${itemCount} items`}
+                    className="text-background/80 hover:text-background transition-colors relative shrink-0"
+                  >
+                    <ShoppingBag
+                      className={cn(
+                        "w-5 h-5 transition-transform",
+                        cartBouncing && "animate-cart-bounce",
+                      )}
+                    />
+                    {itemCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 text-[0.6rem] font-semibold text-background/70">
+                        {itemCount}
+                      </span>
+                    )}
+                  </Link>
                 </div>
               </div>
             </>
@@ -471,15 +534,47 @@ export function SiteHeader() {
               ))}
               {/* Currency — mobile */}
               <li className="px-4 py-3">
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as any)}
-                  className="w-full rounded-2xl bg-white/10 px-4 py-3 text-base font-semibold text-background cursor-pointer"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code} className="text-foreground bg-background">{c.code} — {c.label}</option>
-                  ))}
-                </select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-base font-semibold text-background cursor-pointer"
+                    >
+                      <span>{currency}</span>
+                      <ChevronDown className="w-4 h-4 text-background/60" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    sideOffset={4}
+                    className="w-72 p-0"
+                  >
+                    <Command>
+                      <CommandInput placeholder="Search currencies..." />
+                      <CommandList>
+                        <CommandEmpty>No currency found.</CommandEmpty>
+                        <CommandGroup>
+                          {CURRENCIES.map((c) => (
+                            <CommandItem
+                              key={c.code}
+                              value={`${c.label} ${c.code}`}
+                              onSelect={() => setCurrency(c.code as any)}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span>
+                                  {c.label}{" | "}{c.code} {c.symbol}
+                                </span>
+                                {currency === c.code && (
+                                  <Check className="w-4 h-4 text-primary shrink-0" />
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </li>
 
               <li className="pt-2 border-t border-border mt-4">

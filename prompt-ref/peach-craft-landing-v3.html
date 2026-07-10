@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peach Craft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,380;9..144,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF4F1;
+    --blush:#F3D6DD;
+    --blush-line: rgba(107,42,61,0.16);
+    --wine:#6B2A3D;
+    --wine-deep:#4A1B29;
+    --ink:#2A1F22;
+    --paper:#FFFFFF;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Archivo', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 40px;}
+  a{color:inherit;}
+  img{display:block; max-width:100%;}
+
+  /* ---------- placeholder photo block ---------- */
+  .photo-slot{
+    position:relative;
+    background:var(--blush);
+    border:1.5px dashed rgba(107,42,61,0.35);
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .photo-slot .slot-inner{
+    text-align:center;
+    padding:24px;
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--wine);
+    opacity:0.75;
+  }
+  .photo-slot svg{margin-bottom:10px; opacity:0.6;}
+  .photo-slot .slot-label{font-size:11.5px; letter-spacing:0.3px; line-height:1.6; max-width:220px; margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header{padding:26px 0; border-bottom:1px solid var(--blush-line);}
+  .header-row{display:flex; align-items:center; justify-content:space-between;}
+  .logo{font-family:'Fraunces', serif; font-weight:500; font-size:20px; color:var(--wine); letter-spacing:0.2px;}
+  nav{display:flex; gap:36px;}
+  nav a{text-decoration:none; font-size:14px; font-weight:500; opacity:0.75;}
+  nav a:hover{opacity:1;}
+  .header-icons{display:flex; align-items:center; gap:20px; font-size:14px;}
+  .header-icons a{text-decoration:none; opacity:0.8;}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 20px; text-align:center;}
+  .hero h1{
+    font-family:'Archivo', sans-serif;
+    font-weight:700;
+    font-size:clamp(26px, 3vw, 36px);
+    line-height:1.35;
+    max-width:760px;
+    margin:0 auto;
+    letter-spacing:-0.2px;
+  }
+  .hero-photo{
+    margin-top:44px;
+    width:100%;
+    aspect-ratio:16/8;
+  }
+
+  /* ---------- intro / two column ---------- */
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:64px;
+    align-items:center;
+    padding:100px 0;
+  }
+  .split.reverse .photo-slot{order:2;}
+  .split-photo{aspect-ratio:4/5;}
+  .eyebrow-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:1.2px; text-transform:uppercase;
+    color:var(--wine); opacity:0.7; margin-bottom:16px; display:block;
+  }
+  .split h2{
+    font-family:'Archivo', sans-serif;
+    font-weight:700;
+    font-size:clamp(24px, 2.6vw, 32px);
+    line-height:1.3;
+    color:var(--wine);
+    margin-bottom:18px;
+  }
+  .split p{font-size:15.5px; line-height:1.7; opacity:0.78; max-width:420px;}
+  .split ul{margin-top:22px; display:flex; flex-direction:column; gap:14px;}
+  .split ul li{font-size:15px; line-height:1.6; opacity:0.85; padding-left:20px; position:relative;}
+  .split ul li::before{
+    content:'';
+    position:absolute; left:0; top:8px;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--wine); opacity:0.4;
+  }
+  .split ul li b{color:var(--wine); opacity:1;}
+
+  /* ---------- quote banner ---------- */
+  .quote-banner{
+    text-align:center;
+    padding:60px 0;
+    border-top:1px solid var(--blush-line);
+    border-bottom:1px solid var(--blush-line);
+  }
+  .quote-banner p{
+    font-family:'Fraunces', serif;
+    font-style:italic;
+    font-weight:380;
+    font-size:clamp(20px,2.3vw,28px);
+    max-width:640px;
+    margin:0 auto;
+    color:var(--wine-deep);
+    line-height:1.4;
+  }
+
+  /* ---------- feature triplet ---------- */
+  .section-head{text-align:center; padding:80px 0 8px;}
+  .section-head h2{
+    font-family:'Archivo', sans-serif; font-weight:700;
+    font-size:clamp(22px,2.4vw,30px); color:var(--wine);
+  }
+  .triplet{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:36px;
+    padding:44px 0 100px;
+  }
+  .triplet-card{text-align:center;}
+  .triplet-photo{
+    aspect-ratio:1/1;
+    border-radius:50%;
+    margin:0 auto 22px;
+    width:100%;
+    max-width:180px;
+  }
+  .triplet-card h3{font-size:16px; font-weight:600; margin-bottom:8px; color:var(--wine);}
+  .triplet-card p{font-size:14px; line-height:1.6; opacity:0.7; max-width:230px; margin:0 auto;}
+
+  /* ---------- product grid ---------- */
+  .products-head{display:flex; align-items:baseline; justify-content:space-between; padding:0 0 32px;}
+  .products-head h2{font-family:'Archivo', sans-serif; font-weight:700; font-size:26px; color:var(--wine);}
+  .products-head a{font-size:13.5px; font-weight:500; text-decoration:none; border-bottom:1px solid var(--blush-line);}
+  .product-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:30px 26px;
+    padding-bottom:110px;
+  }
+  .product-card .photo-slot{aspect-ratio:1/1; margin-bottom:16px;}
+  .product-card h3{font-size:14.5px; font-weight:600; margin-bottom:4px;}
+  .product-card .price{font-family:'IBM Plex Mono', monospace; font-size:13px; opacity:0.65;}
+
+  /* ---------- founder story ---------- */
+  .story{
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:56px;
+    align-items:center;
+    padding:90px 0;
+    background:var(--paper);
+    border-top:1px solid var(--blush-line);
+    border-bottom:1px solid var(--blush-line);
+  }
+  .story-photo{aspect-ratio:5/6;}
+  .story h2{
+    font-family:'Fraunces', serif; font-weight:500; font-size:clamp(24px,2.6vw,32px);
+    color:var(--wine); margin-bottom:18px; line-height:1.3;
+  }
+  .story p{font-size:15.5px; line-height:1.75; opacity:0.78; max-width:460px; margin-bottom:28px;}
+  .btn{
+    display:inline-block; background:var(--wine); color:var(--cream);
+    text-decoration:none; font-size:14px; font-weight:500;
+    padding:14px 28px; border-radius:3px;
+  }
+
+  /* ---------- newsletter ---------- */
+  .newsletter{text-align:center; padding:90px 0;}
+  .newsletter h2{font-family:'Archivo', sans-serif; font-weight:700; font-size:24px; color:var(--wine); margin-bottom:10px;}
+  .newsletter p{font-size:14.5px; opacity:0.7; margin-bottom:28px;}
+  .newsletter-form{display:flex; justify-content:center; gap:0; max-width:380px; margin:0 auto;}
+  .newsletter-form input{
+    flex:1; padding:13px 16px; border:1px solid var(--blush-line); border-right:none;
+    border-radius:3px 0 0 3px; font-family:'Archivo'; font-size:14px; background:var(--paper);
+  }
+  .newsletter-form button{
+    padding:13px 22px; background:var(--wine); color:var(--cream); border:none;
+    border-radius:0 3px 3px 0; font-size:14px; font-weight:500; cursor:pointer;
+  }
+
+  footer{padding:40px 0; border-top:1px solid var(--blush-line); text-align:center;}
+  footer p{font-size:12.5px; opacity:0.55;}
+
+  @media(max-width:880px){
+    .wrap{padding:0 22px;}
+    .split, .story{grid-template-columns:1fr; gap:36px;}
+    .split.reverse .photo-slot{order:0;}
+    .triplet, .product-grid{grid-template-columns:1fr 1fr; gap:22px;}
+    nav{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-row">
+      <div class="logo">Peach Craft</div>
+      <nav>
+        <a href="#">Shop</a>
+        <a href="#">Our Story</a>
+        <a href="#">FAQ</a>
+      </nav>
+      <div class="header-icons">
+        <a href="#">Search</a>
+        <a href="#">Cart (0)</a>
+        <a href="#">Log in</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Real cake disappears in one slice — this one stays on your shelf forever.</h1>
+    <div class="photo-slot hero-photo">
+      <div class="slot-inner">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M4 8h16l-1.2 11H5.2L4 8z" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="4.5" r="1.4" stroke="currentColor" stroke-width="1.2"/><circle cx="15" cy="4.5" r="1.4" stroke="currentColor" stroke-width="1.2"/></svg>
+        <div class="slot-label">HERO PHOTO — wide, well-lit shot of your best fake cake on a stand, soft natural light, plain backdrop</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="split">
+    <div>
+      <span class="eyebrow-tag">Enter Peach Craft</span>
+      <h2>Your dessert table's forever centerpiece.</h2>
+      <p>Every "cake" is hand-sculpted from air-dry clay, piped and textured to look freshly frosted — then sealed to sit on a shelf, a cart, or a gift table indefinitely, no fridge required.</p>
+    </div>
+    <div class="photo-slot split-photo">
+      <div class="slot-inner">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9.5" r="1.6" stroke="currentColor" stroke-width="1.2"/><path d="M5 17l5-5 3.5 3.5L17 11l3 3" stroke="currentColor" stroke-width="1.3"/></svg>
+        <div class="slot-label">Close-up detail shot — piped "icing" texture, hands mid-sculpt if possible</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="quote-banner">
+    <p>"Wait... isn't it just a fake cake?"</p>
+  </div>
+
+  <section class="split reverse">
+    <div class="photo-slot split-photo">
+      <div class="slot-inner">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="9.5" r="1.6" stroke="currentColor" stroke-width="1.2"/><path d="M5 17l5-5 3.5 3.5L17 11l3 3" stroke="currentColor" stroke-width="1.3"/></svg>
+        <div class="slot-label">Lifestyle shot — cake displayed in a room, on a dessert cart or shelf</div>
+      </div>
+    </div>
+    <div>
+      <span class="eyebrow-tag">Yes. But it's built different.</span>
+      <h2>No fridge, no expiry, no crumbs.</h2>
+      <ul>
+        <li><b>Never melts:</b> sits out in Manila heat all day without losing shape.</li>
+        <li><b>Keeps every detail:</b> the "frosting" texture is sculpted by hand, not printed.</li>
+        <li><b>Built to last:</b> sealed and varnished so colors don't fade or chip.</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <h2>More sweetness, none of the mess</h2>
+  </div>
+  <div class="triplet">
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Sculpting close-up</div></div>
+      </div>
+      <h3>Hand-Sculpted Detail</h3>
+      <p>Every swirl, drip, and berry shaped by hand — no two pieces come out identical.</p>
+    </div>
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Cake on shelf, months later</div></div>
+      </div>
+      <h3>Shelf-Stable, Always</h3>
+      <p>Display it for a birthday, a bakery window, or a whole year — it won't age a day.</p>
+    </div>
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Cake being held/carried</div></div>
+      </div>
+      <h3>Light &amp; Safe to Handle</h3>
+      <p>Air-dry clay keeps it lightweight, non-toxic, and safe around curious little hands.</p>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>For your piece of mind</h2>
+  </div>
+  <div class="triplet">
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Raw clay material shot</div></div>
+      </div>
+      <h3>Non-Toxic Materials</h3>
+      <p>Air-dry clay and water-based paint only — safe to display anywhere at home.</p>
+    </div>
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Varnish/sealing step</div></div>
+      </div>
+      <h3>Sealed Finish</h3>
+      <p>A protective varnish keeps colors from fading and surfaces from chipping.</p>
+    </div>
+    <div class="triplet-card">
+      <div class="photo-slot triplet-photo">
+        <div class="slot-inner"><div class="slot-label">Packed order, ready to ship</div></div>
+      </div>
+      <h3>Packed With Care</h3>
+      <p>Cushioned, boxed, and inspected before it ever leaves the studio.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="products-head">
+      <h2>From the display case</h2>
+      <a href="#">View all →</a>
+    </div>
+    <div class="product-grid">
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Strawberry Shortcake Box</h3>
+        <div class="price">₱ 890</div>
+      </div>
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Sakura Trinket Cake</h3>
+        <div class="price">₱ 650</div>
+      </div>
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Peach Bear Slice</h3>
+        <div class="price">₱ 420</div>
+      </div>
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Matcha Roll Cake</h3>
+        <div class="price">₱ 780</div>
+      </div>
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Mini Cupcake Set</h3>
+        <div class="price">₱ 350</div>
+      </div>
+      <div class="product-card">
+        <div class="photo-slot"><div class="slot-inner"><div class="slot-label">Product photo</div></div></div>
+        <h3>Blueberry Cheesecake</h3>
+        <div class="price">₱ 920</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="story">
+    <div class="photo-slot story-photo">
+      <div class="slot-inner">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.3"/><path d="M5 20c1.2-4 4-5.6 7-5.6s5.8 1.6 7 5.6" stroke="currentColor" stroke-width="1.3"/></svg>
+        <div class="slot-label">Portrait — you at your work table, mid-sculpt</div>
+      </div>
+    </div>
+    <div>
+      <span class="eyebrow-tag">Our Story</span>
+      <h2>Sculpted alone, one order at a time, in a small home studio in Quezon City.</h2>
+      <p>Peach Craft started in 2021 as a way to make something that lasts — kawaii clay pieces and fake cakes shaped entirely by hand, no molds, no shortcuts. Every order still passes through one maker, start to finish.</p>
+      <a class="btn" href="#">Shop the collection</a>
+    </div>
+  </section>
+
+  <div class="newsletter">
+    <h2>Hungry for more?</h2>
+    <p>New drops are small and rare — we'll only email when there's something worth seeing.</p>
+    <div class="newsletter-form">
+      <input type="email" placeholder="Email">
+      <button>Subscribe</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 Peach Craft — Handmade in Quezon City, Philippines</p>
+  </footer>
+
+</div>
+</body>
+</html>
