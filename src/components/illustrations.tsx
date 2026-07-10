@@ -1,100 +1,56 @@
-// Custom hand-drawn-style SVG illustrations for feature cards.
-// Designed to feel artisan/kawaii rather than stock emoji.
+import { useState, useEffect } from "react";
+import slide1 from "@/assets/slide-show-pictures/peachcraft-slideshow-pic-1.jpg";
+import slide2 from "@/assets/slide-show-pictures/peachcraft-slideshow-pic-2.jpg";
+import slide3 from "@/assets/slide-show-pictures/peachcraft-slideshow-pic-3.jpg";
+import slide4 from "@/assets/slide-show-pictures/peachcraft-slideshow-pic-4.jpg";
 
-export function HandmadeIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 96 96" className={className} aria-hidden role="img">
-      <circle cx="48" cy="48" r="40" fill="oklch(0.92 0.05 20)" />
-      {/* Palette */}
-      <ellipse cx="48" cy="56" rx="26" ry="20" fill="oklch(0.97 0.025 80)" stroke="oklch(0.34 0.07 55)" strokeWidth="2.5"/>
-      <circle cx="36" cy="50" r="4" fill="oklch(0.78 0.07 150)" />
-      <circle cx="48" cy="46" r="4" fill="oklch(0.85 0.09 20)" />
-      <circle cx="60" cy="50" r="4" fill="oklch(0.85 0.15 80)" />
-      <circle cx="44" cy="62" r="4" fill="oklch(0.7 0.18 30)" />
-      <circle cx="56" cy="62" r="4" fill="oklch(0.65 0.16 280)" />
-      {/* Brush */}
-      <rect x="62" y="22" width="4" height="28" rx="2" transform="rotate(35 64 36)" fill="oklch(0.34 0.07 55)" />
-      <path d="M76 18 l6 6 l-4 4 l-6 -6 z" fill="oklch(0.85 0.09 20)" />
-    </svg>
-  );
+const SLIDE_IMAGES = [slide1, slide2, slide3, slide4];
+
+function useSlideshow(length: number, interval = 5000) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (length <= 1) return;
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % length);
+    }, interval);
+    return () => clearInterval(timer);
+  }, [length, interval]);
+
+  return index;
 }
 
-export function KawaiiIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 96 96" className={className} aria-hidden role="img">
-      <circle cx="48" cy="48" r="40" fill="oklch(0.92 0.05 150)" />
-      {/* Cute blob */}
-      <ellipse cx="48" cy="56" rx="24" ry="22" fill="oklch(0.88 0.07 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="2"/>
-      <circle cx="40" cy="54" r="3" fill="oklch(0.28 0.06 55)" />
-      <circle cx="56" cy="54" r="3" fill="oklch(0.28 0.06 55)" />
-      <circle cx="38" cy="56" r="1" fill="white" />
-      <circle cx="54" cy="56" r="1" fill="white" />
-      {/* Blush cheeks */}
-      <circle cx="36" cy="62" r="3" fill="oklch(0.78 0.15 20)" opacity="0.6"/>
-      <circle cx="60" cy="62" r="3" fill="oklch(0.78 0.15 20)" opacity="0.6"/>
-      {/* Smile */}
-      <path d="M44 64 Q48 67 52 64" stroke="oklch(0.28 0.06 55)" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
-      {/* Sparkle */}
-      <path d="M76 24 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="oklch(0.85 0.15 80)" />
-      <path d="M22 30 l1.5 3 l3 1.5 l-3 1.5 l-1.5 3 l-1.5 -3 l-3 -1.5 l3 -1.5 z" fill="oklch(0.85 0.09 20)" />
-    </svg>
-  );
-}
+function ProductSlideshow({ className }: { className?: string }) {
+  const index = useSlideshow(SLIDE_IMAGES.length);
 
-export function PackagingIllustration({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 96 96" className={className} aria-hidden role="img">
-      <circle cx="48" cy="48" r="40" fill="oklch(0.95 0.04 80)" />
-      {/* Box */}
-      <rect x="24" y="40" width="48" height="36" rx="4" fill="oklch(0.86 0.08 55)" stroke="oklch(0.34 0.07 55)" strokeWidth="2"/>
-      <rect x="24" y="40" width="48" height="10" fill="oklch(0.78 0.1 55)" stroke="oklch(0.34 0.07 55)" strokeWidth="2"/>
-      <rect x="44" y="40" width="8" height="36" fill="oklch(0.85 0.09 20)" />
-      {/* Bow */}
-      <path d="M40 36 Q48 22 48 36 Q48 22 56 36 Z" fill="oklch(0.78 0.07 150)" stroke="oklch(0.34 0.07 55)" strokeWidth="2"/>
-      <circle cx="48" cy="36" r="3" fill="oklch(0.85 0.09 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="2"/>
-      {/* Leaf */}
-      <path d="M70 24 Q78 26 76 36 Q68 34 70 24 Z" fill="oklch(0.7 0.1 150)" />
-      <path d="M73 28 L75 32" stroke="oklch(0.32 0.05 150)" strokeWidth="1.2" fill="none"/>
-    </svg>
+    <div className={`relative overflow-hidden rounded-full ${className ?? ""}`} aria-hidden>
+      {SLIDE_IMAGES.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt=""
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1500 ${
+            i === index ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ))}
+    </div>
   );
 }
 
 export function CakeIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 220 220" className={className} aria-hidden role="img">
-      <defs>
-        <radialGradient id="cakeGlow" cx="50%" cy="50%" r="60%">
-          <stop offset="0%" stopColor="oklch(0.96 0.06 20)" stopOpacity="0.9"/>
-          <stop offset="100%" stopColor="oklch(0.96 0.06 20)" stopOpacity="0"/>
-        </radialGradient>
-      </defs>
-      <ellipse cx="110" cy="200" rx="80" ry="8" fill="oklch(0.86 0.06 20)" opacity="0.5"/>
-      <circle cx="110" cy="110" r="100" fill="url(#cakeGlow)"/>
-      {/* Bottom tier */}
-      <rect x="40" y="130" width="140" height="60" rx="14" fill="oklch(0.92 0.06 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="3"/>
-      <path d="M40 142 Q60 150 80 142 T120 142 T160 142 T180 142 L180 130 L40 130 Z" fill="oklch(0.85 0.09 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="3"/>
-      {/* Middle tier */}
-      <rect x="60" y="90" width="100" height="50" rx="12" fill="oklch(0.95 0.05 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="3"/>
-      <path d="M60 102 Q75 110 90 102 T120 102 T150 102 T160 102 L160 90 L60 90 Z" fill="oklch(0.85 0.09 20)" stroke="oklch(0.34 0.07 55)" strokeWidth="3"/>
-      {/* Face */}
-      <circle cx="98" cy="160" r="4" fill="oklch(0.28 0.06 55)"/>
-      <circle cx="122" cy="160" r="4" fill="oklch(0.28 0.06 55)"/>
-      <circle cx="96" cy="162" r="1.2" fill="white"/>
-      <circle cx="120" cy="162" r="1.2" fill="white"/>
-      <circle cx="88" cy="170" r="5" fill="oklch(0.78 0.15 20)" opacity="0.6"/>
-      <circle cx="132" cy="170" r="5" fill="oklch(0.78 0.15 20)" opacity="0.6"/>
-      <path d="M104 172 Q110 178 116 172" stroke="oklch(0.28 0.06 55)" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      {/* Candles */}
-      <rect x="86" y="60" width="5" height="32" rx="1.5" fill="oklch(0.85 0.09 20)"/>
-      <rect x="108" y="50" width="5" height="42" rx="1.5" fill="oklch(0.78 0.07 150)"/>
-      <rect x="130" y="64" width="5" height="28" rx="1.5" fill="oklch(0.85 0.15 80)"/>
-      <ellipse cx="88.5" cy="58" rx="3" ry="4" fill="oklch(0.88 0.18 70)"/>
-      <ellipse cx="110.5" cy="48" rx="3" ry="4" fill="oklch(0.88 0.18 70)"/>
-      <ellipse cx="132.5" cy="62" rx="3" ry="4" fill="oklch(0.88 0.18 70)"/>
-      {/* Sprinkles */}
-      <circle cx="70" cy="115" r="2" fill="oklch(0.78 0.07 150)"/>
-      <circle cx="150" cy="118" r="2" fill="oklch(0.85 0.15 80)"/>
-      <circle cx="110" cy="118" r="2" fill="oklch(0.7 0.18 30)"/>
-    </svg>
-  );
+  return <ProductSlideshow className={className} />;
+}
+
+export function HandmadeIllustration({ className }: { className?: string }) {
+  return <ProductSlideshow className={className} />;
+}
+
+export function KawaiiIllustration({ className }: { className?: string }) {
+  return <ProductSlideshow className={className} />;
+}
+
+export function PackagingIllustration({ className }: { className?: string }) {
+  return <ProductSlideshow className={className} />;
 }
