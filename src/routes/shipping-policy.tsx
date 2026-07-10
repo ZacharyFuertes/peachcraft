@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Truck, RotateCcw, ShieldCheck } from "lucide-react";
+import { FadeIn } from "@/components/FadeIn";
 
 export const Route = createFileRoute("/shipping-policy")({
   head: () => ({
@@ -17,33 +18,38 @@ function PolicyPage() {
   return (
     <section className="bg-cream py-20 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <header className="text-center space-y-3">
-          <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Help Center</span>
-          <h1 className="font-display text-5xl text-brown font-bold tracking-tight">Frequently Asked Questions</h1>
-          <p className="text-foreground/75 text-sm max-w-xl mx-auto">
-            Everything you need to know about how your craft makes it from our kitchen table studio to your shelf.
-          </p>
-        </header>
+        <FadeIn>
+          <header className="text-center space-y-3">
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-primary">Help Center</span>
+            <h1 className="font-display text-5xl text-brown font-bold tracking-tight">Frequently Asked Questions</h1>
+            <p className="text-foreground/75 text-sm max-w-xl mx-auto">
+              Everything you need to know about how your craft makes it from our kitchen table studio to your shelf.
+            </p>
+          </header>
+        </FadeIn>
 
         {/* Highlights Row */}
-        <div className="mt-12 grid sm:grid-cols-3 gap-6">
-          {[
-            { Icon: Truck, t: "3–5 Days Delivery", d: "Nationwide PH Shipping" },
-            { Icon: RotateCcw, t: "7-Day Returns", d: "On unopened, stock crafts" },
-            { Icon: ShieldCheck, t: "Full Safe Guarantee", d: "Replacement if it arrives broken" },
-          ].map(({ Icon, t, d }) => (
-            <div key={t} className="bg-card border border-border/80 rounded-2xl p-6 shadow-card text-center space-y-2 btn-bounce-hover">
-              <div className="w-10 h-10 rounded-full bg-accent/40 flex items-center justify-center mx-auto text-primary">
-                <Icon className="w-5 h-5" aria-hidden />
+        <FadeIn delay={100}>
+          <div className="mt-12 grid sm:grid-cols-3 gap-6">
+            {[
+              { Icon: Truck, t: "3–5 Days Delivery", d: "Nationwide PH Shipping" },
+              { Icon: RotateCcw, t: "7-Day Returns", d: "On unopened, stock crafts" },
+              { Icon: ShieldCheck, t: "Full Safe Guarantee", d: "Replacement if it arrives broken" },
+            ].map(({ Icon, t, d }) => (
+              <div key={t} className="bg-card border border-border/80 rounded-2xl p-6 shadow-card text-center space-y-2 btn-bounce-hover">
+                <div className="w-10 h-10 rounded-full bg-accent/40 flex items-center justify-center mx-auto text-primary">
+                  <Icon className="w-5 h-5" aria-hidden />
+                </div>
+                <p className="font-bold text-brown text-sm">{t}</p>
+                <p className="text-xs text-foreground/70">{d}</p>
               </div>
-              <p className="font-bold text-brown text-sm">{t}</p>
-              <p className="text-xs text-foreground/70">{d}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </FadeIn>
 
         {/* FAQ Accordions Block */}
-        <div className="mt-16 bg-card border border-border/80 rounded-[2.5rem] p-8 sm:p-12 shadow-card space-y-2">
+        <FadeIn delay={200}>
+          <div className="mt-16 bg-card border border-border/80 rounded-[2.5rem] p-8 sm:p-12 shadow-card space-y-2">
           
           <details className="faq-accordion" open>
             <summary>
@@ -133,6 +139,7 @@ function PolicyPage() {
           </details>
 
         </div>
+        </FadeIn>
       </div>
     </section>
   );
