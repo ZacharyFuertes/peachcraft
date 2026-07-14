@@ -3,7 +3,7 @@ import { u as useFloating, o as offset, s as shift, f as flip, a as size, b as a
 import { R as Root } from "./radix-ui__react-arrow.mjs";
 import { u as useComposedRefs } from "./radix-ui__react-compose-refs.mjs";
 import { c as createContextScope } from "./radix-ui__react-context.mjs";
-import { a as Primitive } from "./radix-ui__react-primitive.mjs";
+import { P as Primitive } from "./radix-ui__react-primitive.mjs";
 import { u as useCallbackRef } from "./@radix-ui/react-use-callback-ref+[...].mjs";
 import { u as useLayoutEffect2 } from "./@radix-ui/react-use-layout-effect+[...].mjs";
 import { u as useSize } from "./radix-ui__react-use-size.mjs";

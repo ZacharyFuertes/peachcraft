@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { ProductForm, type ProductFormData } from "@/components/admin/ProductForm";
 import { createProduct } from "@/lib/api/supabase.functions";
 import {
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/admin/products/new")({
 });
 
 function NewProductPage() {
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -29,6 +31,9 @@ function NewProductPage() {
 
     try {
       await createProduct({ data: { ...data, accessToken } });
+      await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["all-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["featured-products"] });
       setShowSuccessDialog(true);
     } catch (err) {
       let message = "Failed to create product.";

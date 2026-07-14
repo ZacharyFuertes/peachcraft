@@ -40,7 +40,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Bell, LogOut, Settings, ShoppingCart, Package, AlertTriangle, LayoutDashboard, Users, BarChart3, Globe, CreditCard, Loader2 } from "lucide-react";
 import { useRouterState, useNavigate, Link } from "@tanstack/react-router";
-import { getSupabaseClient } from "@/lib/supabase";
+import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
 import { getAdminNotifications, type AdminNotificationsResponse } from "@/lib/api/supabase.functions";
 import { toast } from "sonner";
 
@@ -131,6 +131,7 @@ export function Header() {
     try {
       const supabase = getSupabaseClient();
       const { error } = await supabase.auth.signOut();
+      clearAuthCookies();
       if (error) throw error;
       toast.success("Signed out successfully");
       navigate({ to: "/" });

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { createOrder, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency-context";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { ArrowLeft, CheckCircle, Copy, Loader2, Upload } from "lucide-react";
 
 const GCASH_CONFIG = {
@@ -72,57 +73,78 @@ function CheckoutPage() {
   const shippingFee = 150;
   const taxAmount = 0;
   const totalAmount = subtotal + shippingFee + taxAmount;
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [clientIp, setClientIp] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("https://api.ipify.org?format=json")
+      .then((r) => r.json())
+      .then((d) => setClientIp(d.ip))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     const supabase = getSupabaseClient();
 
     // Fast session restore: reads localStorage, no network call
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      if (!session) {
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        if (!session) {
+          setIsAuthenticated(false);
+          setIsVerified(false);
+          setCheckingAuth(false);
+          return;
+        }
+
+        // Session exists — set authenticated immediately (fast path)
+        accessTokenRef.current = session.access_token;
+        setEmail(session.user?.email ?? "");
+        setIsAuthenticated(true);
+        setCheckingAuth(false);
+
+        // Background fetch: profile + active order (non-blocking)
+        const userId = session.user?.id;
+        if (userId) {
+          (async () => {
+            try {
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("email_verified, username, address")
+                .eq("id", userId)
+                .single();
+              if (!mounted) return;
+              if (profile) {
+                setIsVerified(!!profile.email_verified);
+                if (profile.username) setName(profile.username);
+                if (profile.address) setStreet(profile.address);
+              } else {
+                setIsVerified(false);
+              }
+            } catch {}
+          })();
+        }
+
+        getUserActiveOrderStatus({ data: { accessToken: session.access_token } })
+          .then((activeStatus) => {
+            if (!mounted) return;
+            setHasActiveOrder(activeStatus.hasActiveOrder);
+            setActiveOrderId(activeStatus.activeOrder?.id ?? null);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {
+        if (!mounted) return;
         setIsAuthenticated(false);
         setIsVerified(false);
         setCheckingAuth(false);
-        return;
-      }
-
-      // Session exists — set authenticated immediately (fast path)
-      accessTokenRef.current = session.access_token;
-      setEmail(session.user?.email ?? "");
-      setIsAuthenticated(true);
-      setCheckingAuth(false);
-
-      // Background fetch: profile + active order (non-blocking)
-      const userId = session.user?.id;
-      if (userId) {
-        (async () => {
-          try {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("email_verified, username, address")
-              .eq("id", userId)
-              .single();
-            if (!mounted) return;
-            if (profile) {
-              setIsVerified(!!profile.email_verified);
-              if (profile.username) setName(profile.username);
-              if (profile.address) setStreet(profile.address);
-            } else {
-              setIsVerified(false);
-            }
-          } catch {}
-        })();
-      }
-
-      getUserActiveOrderStatus({ data: { accessToken: session.access_token } })
-        .then((activeStatus) => {
-          if (!mounted) return;
-          setHasActiveOrder(activeStatus.hasActiveOrder);
-          setActiveOrderId(activeStatus.activeOrder?.id ?? null);
-        })
-        .catch(() => {});
-    });
+        supabase.auth.signOut();
+        navigate({ to: "/login" });
+      })
+      .finally(() => {
+        if (mounted) setCheckingAuth(false);
+      });
 
     // Real-time auth sync
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -143,7 +165,7 @@ function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (checkingAuth === false && !isAuthenticated) {
+          if (checkingAuth === false && !isAuthenticated) {
       const timer = setTimeout(() => {
         navigate({ to: "/login", search: { redirect: "/checkout" } });
       }, 3000);
@@ -151,13 +173,24 @@ function CheckoutPage() {
     }
   }, [checkingAuth, isAuthenticated]);
 
+  const queryClient = useQueryClient();
+
   const createOrderMutation = useMutation({
-    mutationFn: async (payload: Omit<Parameters<typeof createOrder>[0]["data"], "accessToken">) => {
-      return createOrder({ data: { ...payload, accessToken: accessTokenRef.current ?? undefined } });
+    mutationFn: async (payload: Omit<Parameters<typeof createOrder>[0]["data"], "accessToken" | "turnstileToken" | "ip">) => {
+      return createOrder({
+        data: {
+          ...payload,
+          accessToken: accessTokenRef.current ?? undefined,
+          turnstileToken: turnstileToken ?? undefined,
+          ip: clientIp ?? undefined,
+        },
+      });
     },
     onSuccess: (result) => {
       setOrderId(result.id);
       setDisplayOrderId(generateDisplayOrderId(result.id));
+      queryClient.invalidateQueries({ queryKey: ["all-products"] });
+      queryClient.invalidateQueries({ queryKey: ["featured-products"] });
       if (paymentMethod === "cash_on_delivery") {
         clear();
         setSuccessMessage("Your order is confirmed! We will reach out once it ships.");
@@ -490,6 +523,13 @@ function CheckoutPage() {
                     {formErrors.zip ? <p className="text-xs text-red-400">{formErrors.zip}</p> : null}
                   </label>
                 </div>
+                <div className="flex justify-center pt-2">
+                  <TurnstileWidget
+                    onToken={setTurnstileToken}
+                    onExpired={() => setTurnstileToken(null)}
+                  />
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setStep(2)}

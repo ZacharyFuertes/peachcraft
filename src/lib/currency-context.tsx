@@ -12,14 +12,16 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null);
 const STORAGE_KEY = "peachcraft-currency";
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
-  const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
-    if (typeof window === "undefined") return "PHP";
+  const [currency, setCurrencyState] = useState<CurrencyCode>("PHP");
+
+  useEffect(() => {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored && CURRENCIES.some((c) => c.code === stored)) return stored as CurrencyCode;
+      if (stored && CURRENCIES.some((c) => c.code === stored)) {
+        setCurrencyState(stored as CurrencyCode);
+      }
     } catch {}
-    return "PHP";
-  });
+  }, []);
 
   const setCurrency = (code: CurrencyCode) => {
     setCurrencyState(code);

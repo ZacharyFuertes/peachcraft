@@ -1,5 +1,21 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
+
+/**
+ * Clear auth-related cookies from the browser so the server's
+ * createServerClient doesn't attempt a refresh with stale tokens.
+ * Call after every sign-out or auth-failure catch handler.
+ */
+export function clearAuthCookies() {
+  if (typeof document === "undefined") return;
+  const prefixes = ["supabase-auth-token", "sb-"];
+  document.cookie.split("; ").forEach((c) => {
+    const eq = c.indexOf("=");
+    const name = eq === -1 ? c.trim() : c.slice(0, eq).trim();
+    if (prefixes.some((p) => name.startsWith(p))) {
+      document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+    }
+  });
+}
 
 const getClientEnv = () => {
   const url =
@@ -28,10 +44,41 @@ export function getSupabaseClient(): SupabaseClient {
     // Browser: use createClient with localStorage (simpler than @supabase/ssr's createBrowserClient).
     // Store on window to prevent SSR module-scope leakage from Vinxi shared caching.
     if (!(window as any).__peachcraft_supabase) {
+      // Before creating the client, strip any stale sessions from localStorage whose
+      // access_token has expired (or is within the 90-second refresh margin). This
+      // prevents the client's _recoverAndRefresh from attempting a token refresh
+      // with an invalidated refresh token — a request that can hang indefinitely
+      // (e.g. browser extension blocking the Supabase API, corporate proxy, etc.)
+      // and block initializePromise, which in turn hangs every auth method.
+      const MARGIN_S = 90;
+      const now = Math.floor(Date.now() / 1000);
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("sb-") || key.startsWith("supabase-"))) {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              const expiresAt = parsed?.expires_at ?? parsed?.currentSession?.expires_at;
+              if (typeof expiresAt === "number" && expiresAt + MARGIN_S < now) {
+                localStorage.removeItem(key);
+              }
+            }
+          } catch {
+            // Non-JSON or unrecognised format — leave it alone
+          }
+        }
+      }
+
       (window as any).__peachcraft_supabase = createClient(url, anonKey, {
         auth: {
           flowType: "pkce",
-          autoRefreshToken: true,
+          // autoRefreshToken disabled because the Supabase API's refresh endpoint
+          // hangs indefinitely under certain network conditions (corporate proxy,
+          // browser extension, TLS negotiation stall). When enabled, the client's
+          // internal _callRefreshToken blocks initializePromise forever, which in
+          // turn hangs every auth method (getSession, getUser, signOut).
+          autoRefreshToken: false,
           detectSessionInUrl: true,
           persistSession: true,
           storage: window.localStorage,
@@ -114,24 +161,13 @@ export function getSupabaseServer(request?: Request, options?: SupabaseServerOpt
     }
   }
 
-  // When authOnly, use createServerClient from @supabase/ssr so it properly
-  // reads the auth cookie format that createBrowserClient writes on the client.
+  // Auth-only client: use createClient (not createServerClient) so we NEVER
+  // touch cookies. This avoids the _emitInitialSession → stale-cookie-refresh
+  // → refresh_token_not_found error loop.  All callers provide the access
+  // token explicitly via getUser(jwt); the cookie-based getUser() fallback is
+  // omitted.
   if (authOnly) {
-    return createServerClient(SUPABASE_URL_SERVER, key, {
-      cookies: {
-        getAll() {
-          const cookie = request?.headers.get("cookie") ?? "";
-          if (!cookie) return [];
-          return cookie.split("; ").filter(Boolean).map((c) => {
-            const eq = c.indexOf("=");
-            if (eq === -1) return { name: c.trim(), value: "" };
-            return { name: c.slice(0, eq).trim(), value: c.slice(eq + 1).trim() };
-          });
-        },
-        setAll() {
-          // Auth-only — no need to write cookies
-        },
-      },
+    return createClient(SUPABASE_URL_SERVER, key, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,

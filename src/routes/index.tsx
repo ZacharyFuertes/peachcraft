@@ -198,7 +198,7 @@ function HomePage() {
             </div>
           </FadeIn>
 
-          <div className="mt-10 sm:mt-16 grid grid-cols-2 lg:grid-cols-4 gap-x-1.5 sm:gap-x-2 gap-y-3 sm:gap-y-4">
+          <div className="mt-10 sm:mt-16 grid grid-cols-2 min-[990px]:grid-cols-4 gap-[10px] min-[750px]:gap-[20px]">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="h-60 sm:h-80 rounded-[2rem] bg-[var(--card)] shadow-soft animate-pulse" />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ProductForm, type ProductFormData } from "@/components/admin/ProductForm";
 import { getProductById, updateProduct, type ProductRow } from "@/lib/api/supabase.functions";
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/admin/products/$id")({
 function EditProductPage() {
   const params = Route.useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const productId = params.id;
@@ -39,6 +40,10 @@ function EditProductPage() {
 
     try {
       await updateProduct({ data: { id: params.id!, ...formData, accessToken } });
+      await queryClient.invalidateQueries({ queryKey: ["admin-product", params.id] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["all-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["featured-products"] });
       navigate({ to: "/admin/products", search: { updated: "true" as const } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update product.");

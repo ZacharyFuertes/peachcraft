@@ -57,7 +57,7 @@ export function ProductCard({ product, formattedPrice }: { product: Product; for
       className="custom-product-card group"
     >
       {/* ─── Image area ──────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-cream">
+      <div className="relative overflow-hidden bg-cream aspect-square">
         {imageSrc ? (
           <div className="custom-card-media">
             <img
@@ -65,6 +65,7 @@ export function ProductCard({ product, formattedPrice }: { product: Product; for
               alt={product.name}
               className="custom-card-img"
               loading="lazy"
+              sizes="(min-width: 1200px) 449px, (min-width: 990px) calc((100vw - 120px) / 4), (min-width: 750px) calc((100vw - 60px) / 2), calc((100vw - 40px) / 2)"
             />
             {product.images?.[1] && (
               <img
@@ -72,6 +73,7 @@ export function ProductCard({ product, formattedPrice }: { product: Product; for
                 alt=""
                 className="custom-card-img"
                 loading="lazy"
+                sizes="(min-width: 1200px) 449px, (min-width: 990px) calc((100vw - 120px) / 4), (min-width: 750px) calc((100vw - 60px) / 2), calc((100vw - 40px) / 2)"
               />
             )}
           </div>
@@ -156,9 +158,8 @@ export function ProductCard({ product, formattedPrice }: { product: Product; for
 
     <style>{`
       .custom-product-card {
-        border: none;
-        border-radius: 10px;
-        box-shadow: 0 4px 5px rgba(0, 0, 0, 0.15);
+        border: 1px solid oklch(0 0 0 / 0.1);
+        border-radius: 6px;
         background-color: #ffffff;
         overflow: hidden;
         position: relative;
@@ -166,19 +167,17 @@ export function ProductCard({ product, formattedPrice }: { product: Product; for
         height: 100%;
         display: flex;
         flex-direction: column;
-        transition: box-shadow 250ms ease, transform 250ms ease;
-
       }
       .custom-product-card:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
       }
       .custom-card-media {
+        position: absolute;
+        inset: 0;
         width: 100%;
-        aspect-ratio: 1 / 1;
+        height: 100%;
         overflow: hidden;
         background-color: #f9f2e8;
-        position: relative;
       }
       .custom-card-img {
         width: 100%;

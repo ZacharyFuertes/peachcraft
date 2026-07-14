@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { signUpWithProfile } from "@/lib/api/supabase.functions";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 export const Route = createFileRoute("/signup")({
   component: SignupPage,
@@ -22,6 +23,7 @@ function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -89,6 +91,7 @@ function SignupPage() {
           username: formData.username,
           address: formData.address,
           ip,
+          turnstileToken: turnstileToken ?? undefined,
         },
       });
 
@@ -235,6 +238,13 @@ function SignupPage() {
 
           {error && <p className="rounded-md bg-red-50 p-3 text-sm text-[#f87171]">{error}</p>}
           {success && <p className="rounded-md bg-green-50 p-3 text-sm text-green-700">{success}</p>}
+
+          <div className="flex justify-center">
+            <TurnstileWidget
+              onToken={setTurnstileToken}
+              onExpired={() => setTurnstileToken(null)}
+            />
+          </div>
 
           <button
             type="button"

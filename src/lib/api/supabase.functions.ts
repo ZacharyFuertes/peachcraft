@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
-import { verifyAdmin } from "./admin-auth";
+import { verifyAdmin, validateImageBuffer } from "./admin-auth";
+import { verifyTurnstile } from "./turnstile";
 
 export type ProductRow = {
   id: string;
@@ -150,6 +151,7 @@ export const getAllProducts = createServerFn({ method: "GET" }).handler(async ()
 });
 
 export const getAdminDashboardData = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const today = new Date();
@@ -345,11 +347,10 @@ export const getUserActiveOrderStatus = createServerFn({ method: "POST" })
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        return { hasActiveOrder: false, activeOrder: null };
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) {
       return { hasActiveOrder: false, activeOrder: null };
@@ -401,19 +402,27 @@ export const createOrder = createServerFn({ method: "POST" })
       total_amount: z.number().min(0),
       payment_method: z.enum(["cash_on_delivery", "gcash"]),
       accessToken: z.string().optional(),
+      turnstileToken: z.string().optional(),
+      ip: z.string().optional(),
     }),
   )
   .handler(async ({ data }) => {
+    if (data.turnstileToken) {
+      const valid = await verifyTurnstile(data.turnstileToken);
+      if (!valid) {
+        throw new Error("CAPTCHA verification failed. Please refresh and try again.");
+      }
+    }
+
     const authClient = getSupabaseServer(undefined, { authOnly: true });
 
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required. Please sign in to place an order.");
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) {
       throw new Error("Authentication required. Please sign in to place an order.");
@@ -431,6 +440,20 @@ export const createOrder = createServerFn({ method: "POST" })
 
     if (profileError || !profile || !profile.email_verified) {
       throw new Error("Your email has not been verified yet. Please verify your email before placing an order.");
+    }
+
+    // IP-based rate limiting for orders (max 3 orders per IP per hour)
+    if (data.ip) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count, error: countError } = await supabase
+        .from("order_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("ip", data.ip)
+        .gte("created_at", oneHourAgo);
+
+      if (!countError && count !== null && count >= 3) {
+        throw new Error("Too many orders from this IP. Please try again later.");
+      }
     }
 
     // Rate limit check: ensure user doesn't have an active order
@@ -549,6 +572,11 @@ export const createOrder = createServerFn({ method: "POST" })
       throw itemsError;
     }
 
+    // Record the order attempt for IP-based rate limiting (best-effort)
+    if (data.ip) {
+      await supabase.from("order_attempts").insert({ ip: data.ip, user_id: userId }).maybeSingle();
+    }
+
     return { id: order.id };
   });
 
@@ -592,11 +620,10 @@ export const uploadPaymentProof = createServerFn({ method: "POST" })
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required.");
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) {
       throw new Error("Authentication required.");
@@ -688,10 +715,6 @@ export const submitGCashProof = createServerFn({ method: "POST" })
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) {
       throw new Error("Authentication required.");
@@ -931,6 +954,7 @@ export const getAdminPayment = createServerFn({ method: "GET" })
   });
 
 export const getAdminProducts = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data, error } = await supabase
     .from("products")
@@ -1177,6 +1201,7 @@ export const updateProduct = createServerFn({ method: "POST" })
   });
 
 export const getOrdersList = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
   const { data: orders, error } = await supabase
     .from("orders")
@@ -1211,6 +1236,7 @@ export const getOrdersList = createServerFn({ method: "GET" }).handler(async () 
 export const getOrderDetails = createServerFn({ method: "GET" })
   .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
+    await verifyAdmin();
     const supabase = getSupabaseServer();
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -1345,6 +1371,7 @@ export type AnalyticsData = {
 };
 
 export const getAnalyticsData = createServerFn({ method: "GET" }).handler(async () => {
+  await verifyAdmin();
   const supabase = getSupabaseServer();
 
   const today = new Date();
@@ -1525,6 +1552,9 @@ export const uploadProductImage = createServerFn({ method: "POST" })
     const mimeType = data.base64.match(/^data:(.*);base64,/)?.[1] ?? "application/octet-stream";
     const base64String = data.base64.replace(/^data:.*;base64,/, "");
     const buffer = Buffer.from(base64String, "base64");
+
+    validateImageBuffer(buffer);
+
     const filePath = `public/${Date.now()}-${data.fileName}`;
 
     const encodeR2ObjectKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");
@@ -1596,9 +1626,17 @@ export const signUpWithProfile = createServerFn({ method: "POST" })
       username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
       address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
       ip: z.string().optional(),
+      turnstileToken: z.string().optional(),
     })
   )
   .handler(async ({ data }) => {
+    if (data.turnstileToken) {
+      const valid = await verifyTurnstile(data.turnstileToken);
+      if (!valid) {
+        throw new Error("CAPTCHA verification failed. Please refresh and try again.");
+      }
+    }
+
     const supabase = getSupabaseServer();
 
     // Rate-limit: allow a small number of signup attempts per IP per hour.
@@ -1807,11 +1845,10 @@ export const saveCartForUser = createServerFn({ method: "POST" })
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required to save cart.");
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) throw new Error("Authentication required to save cart.");
 
@@ -1837,11 +1874,10 @@ export const getCartForUser = createServerFn({ method: "POST" })
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        return { items: [] };
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) return { items: [] };
 
@@ -1864,11 +1900,10 @@ export const getMyOrders = createServerFn({ method: "POST" })
     let userId: string | null = null;
     if (data.accessToken) {
       const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        return [] as any[];
+      }
       userId = tokenResult.data?.user?.id ?? null;
-    }
-    if (!userId) {
-      const { data: authData } = await authClient.auth.getUser();
-      userId = authData.user?.id ?? null;
     }
     if (!userId) return [] as any[];
 
@@ -1888,6 +1923,117 @@ export const getMyOrders = createServerFn({ method: "POST" })
       total_amount: o.total_amount,
       created_at: o.created_at,
     }));
+  });
+
+export const getCustomerOrders = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ accessToken: z.string().optional() }))
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        return [];
+      }
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) return [];
+
+    const supabase = getSupabaseServer();
+
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select(`
+        id,status,total_amount,created_at,shipping_address,payment_method,
+        order_items(
+          id,qty,price_at_purchase,
+          product_id,
+          products(name)
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return (orders ?? []).map((o) => ({
+      id: o.id,
+      status: o.status,
+      total_amount: o.total_amount,
+      created_at: o.created_at,
+      shipping_address: o.shipping_address as Record<string, string> | null,
+      payment_method: o.payment_method,
+      items: ((o as any).order_items ?? []).map((item: any) => ({
+        product_id: item.product_id,
+        name: item.products?.name ?? "Unknown",
+        qty: item.qty,
+        price_at_purchase: item.price_at_purchase,
+      })),
+    }));
+  });
+
+export const cancelCustomerOrder = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      orderId: z.string().uuid(),
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required");
+      }
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required");
+    }
+
+    const supabase = getSupabaseServer();
+
+    // Fetch the order and verify ownership
+    const { data: order, error: fetchError } = await supabase
+      .from("orders")
+      .select("id,status,user_id")
+      .eq("id", data.orderId)
+      .single();
+
+    if (fetchError || !order) {
+      throw fetchError ?? new Error("Order not found.");
+    }
+
+    if (order.user_id !== userId) {
+      throw new Error("You can only cancel your own orders.");
+    }
+
+    if (order.status !== "pending") {
+      throw new Error("Only pending orders can be cancelled. This order has already been processed.");
+    }
+
+    // Restore stock for each item
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("product_id,qty")
+      .eq("order_id", data.orderId);
+
+    for (const item of items ?? []) {
+      await restoreStock(supabase, item.product_id, item.qty);
+    }
+
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({ status: "cancelled" })
+      .eq("id", data.orderId);
+
+    if (updateError) throw updateError;
+
+    return { success: true, message: "Order cancelled successfully." };
   });
 
 export const verifyEmail = createServerFn({ method: "POST" })
@@ -1958,4 +2104,181 @@ export const checkEmailVerification = createServerFn({ method: "POST" })
     }
 
     return { emailVerified: profile.email_verified ?? false };
+  });
+
+export const updateProfile = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      username: z.string().min(2, "Username must be at least 2 characters").max(50, "Username is too long"),
+      address: z.string().min(5, "Address must be at least 5 characters").max(200, "Address is too long"),
+      accessToken: z.string().optional(),
+      turnstileToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (data.turnstileToken) {
+      const valid = await verifyTurnstile(data.turnstileToken);
+      if (!valid) {
+        throw new Error("CAPTCHA verification failed. Please try again.");
+      }
+    }
+
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required");
+      }
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required");
+    }
+
+    const supabase = getSupabaseServer();
+
+    // Check if username is taken by another user
+    const { data: existingUsername } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", data.username.toLowerCase())
+      .neq("id", userId)
+      .single();
+
+    if (existingUsername) {
+      throw new Error("This username is already taken");
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: data.username.toLowerCase(), address: data.address })
+      .eq("id", userId);
+
+    if (error) throw error;
+
+    return { success: true, message: "Profile updated successfully!" };
+  });
+
+export const changePassword = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      newPassword: z.string().min(8, "New password must be at least 8 characters"),
+      turnstileToken: z.string().optional(),
+      accessToken: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (data.turnstileToken) {
+      const valid = await verifyTurnstile(data.turnstileToken);
+      if (!valid) {
+        throw new Error("CAPTCHA verification failed. Please try again.");
+      }
+    }
+
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required");
+      }
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required");
+    }
+
+    // Get user email before admin API call (which invalidates all sessions)
+    let userEmail: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (!tokenResult.error) {
+        userEmail = tokenResult.data?.user?.email ?? null;
+      }
+    }
+
+    const supabase = getSupabaseServer();
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+      password: data.newPassword,
+    });
+
+    if (updateError) throw updateError;
+
+    // Re-authenticate with new password so the user isn't logged out
+    // (admin.updateUserById invalidates ALL sessions)
+    if (userEmail) {
+      const { error: signInError } = await authClient.auth.signInWithPassword({
+        email: userEmail,
+        password: data.newPassword,
+      });
+      if (signInError) {
+        console.error("[changePassword] Failed to re-establish session:", signInError);
+      }
+    }
+
+    return { success: true, message: "Password changed successfully!" };
+  });
+
+export const checkIsAdmin = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ accessToken: z.string().optional() }))
+  .handler(async ({ data }) => {
+    try {
+      await verifyAdmin(undefined, data.accessToken);
+      return { isAdmin: true };
+    } catch {
+      return { isAdmin: false };
+    }
+  });
+
+export const verifyLoginAttempt = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      turnstileToken: z.string().optional(),
+      ip: z.string().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (data.turnstileToken) {
+      const valid = await verifyTurnstile(data.turnstileToken);
+      if (!valid) {
+        throw new Error("CAPTCHA verification failed. Please try again.");
+      }
+    }
+
+    if (data.ip) {
+      const supabase = getSupabaseServer();
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { count, error } = await supabase
+        .from("login_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("ip", data.ip)
+        .gte("created_at", oneHourAgo);
+
+      if (error) throw error;
+
+      if (count !== null && count >= 5) {
+        throw new Error("Too many login attempts. Please try again in an hour.");
+      }
+    }
+
+    return { ok: true };
+  });
+
+export const recordLoginFailure = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ ip: z.string().optional() }))
+  .handler(async ({ data }) => {
+    if (!data.ip) return { ok: true };
+
+    const supabase = getSupabaseServer();
+    const { error } = await supabase.from("login_attempts").insert({ ip: data.ip });
+
+    if (error) {
+      console.error("[recordLoginFailure] Failed to record attempt:", error);
+    }
+
+    return { ok: true };
   });

@@ -39,6 +39,8 @@ function AdminProductsPage() {
       const accessToken = await getAccessToken();
       await toggleProductActive({ data: { id: product.id, is_active: !Boolean(product.is_active), accessToken } });
       await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["all-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["featured-products"] });
       toast.success(product.is_active ? "Product deactivated" : "Product activated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update product");
@@ -55,6 +57,8 @@ function AdminProductsPage() {
       const accessToken = await getAccessToken();
       await deleteProduct({ data: { id: product.id, accessToken } });
       await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["all-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["featured-products"] });
       toast.success("Product deleted");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete product.");

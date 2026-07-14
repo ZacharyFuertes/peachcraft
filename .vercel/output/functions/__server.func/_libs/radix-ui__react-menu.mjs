@@ -10,7 +10,7 @@ import { F as FocusScope } from "./radix-ui__react-focus-scope.mjs";
 import { R as Root2, A as Anchor, c as createPopperScope, C as Content, a as Arrow } from "./radix-ui__react-popper.mjs";
 import { P as Portal$1 } from "./radix-ui__react-portal.mjs";
 import { P as Presence } from "./radix-ui__react-presence.mjs";
-import { a as Primitive, d as dispatchDiscreteCustomEvent } from "./radix-ui__react-primitive.mjs";
+import { P as Primitive, d as dispatchDiscreteCustomEvent } from "./radix-ui__react-primitive.mjs";
 import { c as createRovingFocusGroupScope, I as Item, R as Root } from "./radix-ui__react-roving-focus.mjs";
 import { f as createSlot } from "./radix-ui__react-slot.mjs";
 import { u as useCallbackRef } from "./@radix-ui/react-use-callback-ref+[...].mjs";

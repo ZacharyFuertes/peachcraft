@@ -222,17 +222,17 @@ function ShopPage() {
         )}
 
         {/* ── Product grid ── */}
-        <ul id="product-grid" className="product-grid">
+        <ul id="product-grid" className="grid grid-cols-2 min-[990px]:grid-cols-4 gap-[10px] min-[750px]:gap-[20px] mt-4 list-none p-0">
           {isLoading ? (
             Array.from({ length: 8 }).map((_, index) => (
-              <li key={index} className="h-80 rounded-[10px] bg-[var(--card)] shadow-soft animate-pulse" />
+              <li key={index} className="h-80 rounded-[6px] bg-[var(--card)] shadow-soft animate-pulse" />
             ))
           ) : error ? (
-            <li className="full-width-item"><div className="rounded-[2rem] bg-[var(--card)] p-6 text-sm text-[#f87171] shadow-soft">
+            <li className="col-span-full"><div className="rounded-[2rem] bg-[var(--card)] p-6 text-sm text-[#f87171] shadow-soft">
               {error instanceof Error ? error.message : "Unable to load products."}
             </div></li>
           ) : filteredProducts.length === 0 ? (
-            <li className="full-width-item"><p className="text-center text-foreground/50 py-16">
+            <li className="col-span-full"><p className="text-center text-foreground/50 py-16">
               No products match the selected filters.
             </p></li>
           ) : filteredProducts.map((p, i) => (
@@ -287,32 +287,6 @@ function ShopPage() {
           border-color: oklch(0.6 0.06 150);
         }
 
-        /* ── Product grid ── */
-        .product-grid {
-          display: flex;
-          flex-wrap: wrap;
-          margin-top: 16px;
-          gap: 12px;
-          font-family: Quicksand, sans-serif;
-          font-size: 16px;
-          font-weight: 500;
-          line-height: 28.8px;
-          letter-spacing: 0.6px;
-          color: rgba(0, 0, 0, 0.75);
-          list-style: none;
-          padding: 0;
-        }
-        .product-grid > li {
-          width: calc(50% - 6px);
-        }
-        @media (min-width: 1024px) {
-          .product-grid > li {
-            width: calc(25% - 9px);
-          }
-        }
-        .product-grid > li.full-width-item {
-          width: 100%;
-        }
       `}</style>
     </section>
   );

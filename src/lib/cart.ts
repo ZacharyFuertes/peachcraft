@@ -62,7 +62,7 @@ export function getCartTotals(items: CartItem[]) {
   return { itemCount, subtotal };
 }
 
-function makePersistableCartItem(item: CartItem): PersistableCartItem {
+export function makePersistableCartItem(item: CartItem): PersistableCartItem {
   return {
     product_id: item.product_id,
     name: item.name,

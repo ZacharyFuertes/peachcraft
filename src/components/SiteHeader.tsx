@@ -1,10 +1,10 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Search, ShoppingBag, Menu, X, UserCircle2, ArrowRight, Tag, Package, Check, ChevronDown } from "lucide-react";
+import { Search, ShoppingBag, Menu, X, ArrowRight, Tag, Package, Check, ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/icons/logo.svg?url";
-import { getSupabaseClient } from "@/lib/supabase";
+import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
 import { getMyOrders } from "@/lib/api/supabase.functions";
 import { getAutocompleteSuggestions } from "@/lib/api/search.functions";
 import { useCurrency } from "@/lib/currency-context";
@@ -52,7 +52,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
 }
 
 export function SiteHeader() {
-  const [scrolled, setScrolled] = useState(false);
+  const [compact, setCompact] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -72,7 +72,7 @@ export function SiteHeader() {
 
   // ─── Scroll ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setCompact(window.scrollY > 80);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -89,9 +89,13 @@ export function SiteHeader() {
     const supabase = getSupabaseClient();
 
     // Fast session restore: reads localStorage, no network call
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserEmail(session?.user?.email ?? null);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUserEmail(session?.user?.email ?? null);
+      })
+      .catch(() => {
+        setUserEmail(null);
+      });
 
     // Real-time sync for login/logout across tabs
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -195,13 +199,15 @@ export function SiteHeader() {
   }, []);
 
   const handleSignOut = async () => {
-    console.log("[Auth:SignOut] ===== SIGN-OUT START =====");
-
     const supabase = getSupabaseClient();
-    // Use scope: "local" to clear the session client-side only, avoiding
-    // a hanging network request to Supabase's _revokeAllSessions().
+    // Fire server-side revocation (best-effort, don't await — avoids hanging
+    // if the API call fails or is slow, e.g. in Chrome with certain extensions).
+    supabase.auth.signOut().catch(() => {});
+    // Always clear local session immediately regardless of API outcome.
     await supabase.auth.signOut({ scope: "local" });
-
+    // Clear any stale auth cookies from the browser so the server's
+    // createServerClient doesn't try to refresh an already-invalidated token.
+    clearAuthCookies();
     setUserEmail(null);
     navigate({ to: "/" });
   };
@@ -248,8 +254,8 @@ export function SiteHeader() {
 
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 py-3 transition-all duration-300",
-          scrolled ? "shadow-[0_4px_24px_rgba(0,0,0,0.28)]" : "shadow-none"
+          "fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 transition-all duration-300",
+          compact ? "py-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)]" : "py-5 shadow-none"
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -312,7 +318,7 @@ export function SiteHeader() {
 
                 {/* Center: Logo (Absolutely Centered and Horizontal) */}
                 <div className="absolute inset-x-0 mx-auto flex justify-center items-center pointer-events-none">
-                  <Link to="/" className="flex items-center gap-1.5 pointer-events-auto group whitespace-nowrap" aria-label="Peach Craft home">
+                  <Link to="/" className="flex items-center gap-1.5 pointer-events-auto group whitespace-nowrap transition-all duration-300" aria-label="Peach Craft home" style={{ transform: `scale(${compact ? 1 : 1.15})`, transformOrigin: "center center" }}>
                     <img
                       src={logoUrl}
                       alt="Peach Craft logo"
@@ -357,12 +363,12 @@ export function SiteHeader() {
               </div>
 
               {/* Desktop Navbar Placement */}
-              <div className="hidden lg:flex items-center justify-between h-16 w-full">
-                <Link to="/" className="flex items-center gap-3 group btn-bounce-hover" aria-label="Peach Craft home">
+              <div className="hidden lg:flex items-center justify-between h-16">
+                <Link to="/" className="flex items-center gap-3 group btn-bounce-hover transition-all duration-300" aria-label="Peach Craft home" style={{ transform: `scale(${compact ? 1 : 1.25})`, transformOrigin: "left center" }}>
                   <img
                     src={logoUrl}
                     alt="Peach Craft logo"
-                    className="w-10 h-10 object-contain transition-transform group-hover:rotate-12 duration-300"
+                    className="w-10 h-10 object-contain transition-transform group-hover:rotate-12"
                   />
                   <span className="font-display text-2xl">
                     <span className="text-background">Peach</span>{" "}
@@ -370,7 +376,7 @@ export function SiteHeader() {
                   </span>
                 </Link>
 
-                <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-white/10 border border-white/20 px-1 py-1 rounded-full">
+                <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-background rounded-full px-1.5 py-1.5">
                   {nav.map((item) => {
                     const active = item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
                     return (
@@ -381,7 +387,7 @@ export function SiteHeader() {
                           "relative px-5 py-2 text-sm font-semibold rounded-full transition-all duration-300 btn-bounce-hover",
                           active
                             ? "bg-blush text-blush-foreground"
-                            : "text-background/80 hover:text-background hover:bg-white/10",
+                            : "text-foreground/80 hover:text-foreground hover:bg-accent/50",
                         )}
                       >
                         {item.label}
@@ -475,6 +481,12 @@ export function SiteHeader() {
                             Edit Profile
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/orders" className="cursor-pointer">
+                            <Package className="w-4 h-4 mr-2" />
+                            My Orders
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                           Sign out
@@ -485,10 +497,13 @@ export function SiteHeader() {
                     <Link
                       to="/login"
                       id="header-sign-in-btn"
-                      className="hidden lg:inline-flex items-center justify-center px-5 py-2 rounded-full bg-blush text-blush-foreground text-xs font-semibold hover:bg-blush/90 transition-all btn-bounce-hover"
+                      className="text-background/80 hover:text-background transition-colors shrink-0"
+                      aria-label="Sign In"
                     >
-                      <UserCircle2 className="w-3.5 h-3.5 mr-1" aria-hidden />
-                      Sign In
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 21a8 8 0 0 0-16 0" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
                     </Link>
                   )}
 
@@ -520,14 +535,14 @@ export function SiteHeader() {
         {mobileOpen && !searchOpen && (
           <nav
             aria-label="Mobile"
-            className="lg:hidden border-b border-white/10 bg-sage-deep animate-fade-in rounded-b-[2rem] overflow-hidden"
+            className="lg:hidden border-b border-border/40 bg-background animate-fade-in rounded-b-[2rem] overflow-hidden"
           >
             <ul className="px-6 py-6 space-y-2">
               {nav.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
-                    className="block px-4 py-3 rounded-2xl text-base font-semibold hover:bg-white/10 text-background transition-all"
+                    className="block px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent/50 text-foreground transition-all"
                   >
                     {item.label}
                   </Link>
@@ -539,10 +554,10 @@ export function SiteHeader() {
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="w-full flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 text-base font-semibold text-background cursor-pointer"
+                      className="w-full flex items-center justify-between rounded-2xl bg-accent/40 px-4 py-3 text-base font-semibold text-foreground cursor-pointer"
                     >
                       <span>{currency}</span>
-                      <ChevronDown className="w-4 h-4 text-background/60" />
+                      <ChevronDown className="w-4 h-4 text-foreground/60" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -583,17 +598,20 @@ export function SiteHeader() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold hover:bg-white/10 text-background/80 transition-all"
+                    className="w-full text-left px-4 py-3 rounded-2xl text-base font-semibold hover:bg-accent/50 text-foreground/80 transition-all"
                   >
                     Sign out
                   </button>
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center gap-2 px-4 py-3 rounded-2xl text-base font-bold text-blush hover:bg-white/10 transition-all"
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl text-base font-bold text-foreground hover:bg-accent/50 transition-all"
+                    aria-label="Sign In"
                   >
-                    <UserCircle2 className="w-5 h-5" aria-hidden />
-                    Sign In
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 21a8 8 0 0 0-16 0" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
                   </Link>
                 )}
               </li>

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSupabaseServer } from "../supabase";
-import { verifyAdmin } from "./admin-auth";
+import { verifyAdmin, validateImageBuffer } from "./admin-auth";
 
 export type StoreDetails = {
   store_name: string;
@@ -32,6 +32,9 @@ export const uploadStoreImage = createServerFn({ method: "POST" })
     const mimeType = data.base64.match(/^data:(.*);base64,/)?.[1] ?? "application/octet-stream";
     const base64String = data.base64.replace(/^data:.*;base64,/, "");
     const buffer = Buffer.from(base64String, "base64");
+
+    validateImageBuffer(buffer);
+
     const filePath = `public/${Date.now()}-${data.fileName}`;
 
     const encodeR2ObjectKey = (key: string) => key.split("/").map(encodeURIComponent).join("/");

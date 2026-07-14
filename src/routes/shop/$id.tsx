@@ -454,7 +454,7 @@ function ProductDetailPage() {
         {relatedProducts.length > 0 && (
           <div className="mt-20 pt-16 border-t border-border/80">
             <h2 className="font-display text-3xl text-brown font-bold mb-8">Related products</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-1.5 sm:gap-x-2 gap-y-3 sm:gap-y-4">
+            <div className="grid grid-cols-2 min-[990px]:grid-cols-4 gap-[10px] min-[750px]:gap-[20px]">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

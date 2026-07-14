@@ -185,7 +185,7 @@ function useMutation(options, queryClient) {
 }
 export {
   QueryClientProvider as Q,
-  useMutation as a,
-  useQueryClient as b,
+  useQueryClient as a,
+  useMutation as b,
   useQuery as u
 };

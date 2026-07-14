@@ -4,7 +4,7 @@ import { c as createContextScope } from "./radix-ui__react-context.mjs";
 import { u as useControllableState } from "./@radix-ui/react-use-controllable-state+[...].mjs";
 import { u as useLayoutEffect2 } from "./@radix-ui/react-use-layout-effect+[...].mjs";
 import { u as useComposedRefs } from "./radix-ui__react-compose-refs.mjs";
-import { a as Primitive } from "./radix-ui__react-primitive.mjs";
+import { P as Primitive } from "./radix-ui__react-primitive.mjs";
 import { P as Presence } from "./radix-ui__react-presence.mjs";
 import { u as useId } from "./radix-ui__react-id.mjs";
 var COLLAPSIBLE_NAME = "Collapsible";

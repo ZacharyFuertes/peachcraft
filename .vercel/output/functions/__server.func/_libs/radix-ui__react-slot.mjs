@@ -1,21 +1,10 @@
 import { r as reactExports, j as jsxRuntimeExports, b as React } from "./react.mjs";
 import { c as composeRefs } from "./radix-ui__react-compose-refs.mjs";
-var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
-var use = React[" use ".trim().toString()];
-function isPromiseLike(value) {
-  return typeof value === "object" && value !== null && "then" in value;
-}
-function isLazyComponent(element) {
-  return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
-}
 // @__NO_SIDE_EFFECTS__
 function createSlot$6(ownerName) {
   const SlotClone = /* @__PURE__ */ createSlotClone$6(ownerName);
   const Slot2 = reactExports.forwardRef((props, forwardedRef) => {
-    let { children, ...slotProps } = props;
-    if (isLazyComponent(children) && typeof use === "function") {
-      children = use(children._payload);
-    }
+    const { children, ...slotProps } = props;
     const childrenArray = reactExports.Children.toArray(children);
     const slottable = childrenArray.find(isSlottable$6);
     if (slottable) {
@@ -35,14 +24,10 @@ function createSlot$6(ownerName) {
   Slot2.displayName = `${ownerName}.Slot`;
   return Slot2;
 }
-var Slot = /* @__PURE__ */ createSlot$6("Slot");
 // @__NO_SIDE_EFFECTS__
 function createSlotClone$6(ownerName) {
   const SlotClone = reactExports.forwardRef((props, forwardedRef) => {
-    let { children, ...slotProps } = props;
-    if (isLazyComponent(children) && typeof use === "function") {
-      children = use(children._payload);
-    }
+    const { children, ...slotProps } = props;
     if (reactExports.isValidElement(children)) {
       const childrenRef = getElementRef$6(children);
       const props2 = mergeProps$6(slotProps, children.props);
@@ -261,16 +246,6 @@ function getElementRef$4(element) {
   }
   return element.props.ref || element.ref;
 }
-var SLOTTABLE_IDENTIFIER$4 = /* @__PURE__ */ Symbol("radix.slottable");
-// @__NO_SIDE_EFFECTS__
-function createSlottable(ownerName) {
-  const Slottable2 = ({ children }) => {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children });
-  };
-  Slottable2.displayName = `${ownerName}.Slottable`;
-  Slottable2.__radixId = SLOTTABLE_IDENTIFIER$4;
-  return Slottable2;
-}
 // @__NO_SIDE_EFFECTS__
 function createSlot$3(ownerName) {
   const SlotClone = /* @__PURE__ */ createSlotClone$3(ownerName);
@@ -312,9 +287,9 @@ function createSlotClone$3(ownerName) {
   SlotClone.displayName = `${ownerName}.SlotClone`;
   return SlotClone;
 }
-var SLOTTABLE_IDENTIFIER$3 = /* @__PURE__ */ Symbol("radix.slottable");
+var SLOTTABLE_IDENTIFIER$4 = /* @__PURE__ */ Symbol("radix.slottable");
 function isSlottable$3(child) {
-  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$3;
+  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$4;
 }
 function mergeProps$3(slotProps, childProps) {
   const overrideProps = { ...childProps };
@@ -394,9 +369,9 @@ function createSlotClone$2(ownerName) {
   SlotClone.displayName = `${ownerName}.SlotClone`;
   return SlotClone;
 }
-var SLOTTABLE_IDENTIFIER$2 = /* @__PURE__ */ Symbol("radix.slottable");
+var SLOTTABLE_IDENTIFIER$3 = /* @__PURE__ */ Symbol("radix.slottable");
 function isSlottable$2(child) {
-  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$2;
+  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$3;
 }
 function mergeProps$2(slotProps, childProps) {
   const overrideProps = { ...childProps };
@@ -435,11 +410,22 @@ function getElementRef$2(element) {
   }
   return element.props.ref || element.ref;
 }
+var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+var use = React[" use ".trim().toString()];
+function isPromiseLike(value) {
+  return typeof value === "object" && value !== null && "then" in value;
+}
+function isLazyComponent(element) {
+  return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
+}
 // @__NO_SIDE_EFFECTS__
 function createSlot$1(ownerName) {
   const SlotClone = /* @__PURE__ */ createSlotClone$1(ownerName);
   const Slot2 = reactExports.forwardRef((props, forwardedRef) => {
-    const { children, ...slotProps } = props;
+    let { children, ...slotProps } = props;
+    if (isLazyComponent(children) && typeof use === "function") {
+      children = use(children._payload);
+    }
     const childrenArray = reactExports.Children.toArray(children);
     const slottable = childrenArray.find(isSlottable$1);
     if (slottable) {
@@ -459,10 +445,14 @@ function createSlot$1(ownerName) {
   Slot2.displayName = `${ownerName}.Slot`;
   return Slot2;
 }
+var Slot = /* @__PURE__ */ createSlot$1("Slot");
 // @__NO_SIDE_EFFECTS__
 function createSlotClone$1(ownerName) {
   const SlotClone = reactExports.forwardRef((props, forwardedRef) => {
-    const { children, ...slotProps } = props;
+    let { children, ...slotProps } = props;
+    if (isLazyComponent(children) && typeof use === "function") {
+      children = use(children._payload);
+    }
     if (reactExports.isValidElement(children)) {
       const childrenRef = getElementRef$1(children);
       const props2 = mergeProps$1(slotProps, children.props);
@@ -476,9 +466,9 @@ function createSlotClone$1(ownerName) {
   SlotClone.displayName = `${ownerName}.SlotClone`;
   return SlotClone;
 }
-var SLOTTABLE_IDENTIFIER$1 = /* @__PURE__ */ Symbol("radix.slottable");
+var SLOTTABLE_IDENTIFIER$2 = /* @__PURE__ */ Symbol("radix.slottable");
 function isSlottable$1(child) {
-  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$1;
+  return reactExports.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER$2;
 }
 function mergeProps$1(slotProps, childProps) {
   const overrideProps = { ...childProps };
@@ -516,6 +506,16 @@ function getElementRef$1(element) {
     return element.props.ref;
   }
   return element.props.ref || element.ref;
+}
+var SLOTTABLE_IDENTIFIER$1 = /* @__PURE__ */ Symbol("radix.slottable");
+// @__NO_SIDE_EFFECTS__
+function createSlottable(ownerName) {
+  const Slottable2 = ({ children }) => {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children });
+  };
+  Slottable2.displayName = `${ownerName}.Slottable`;
+  Slottable2.__radixId = SLOTTABLE_IDENTIFIER$1;
+  return Slottable2;
 }
 // @__NO_SIDE_EFFECTS__
 function createSlot(ownerName) {
@@ -601,12 +601,12 @@ function getElementRef(element) {
 }
 export {
   Slot as S,
-  createSlot$5 as a,
-  createSlot$4 as b,
+  createSlot$1 as a,
+  createSlot$5 as b,
   createSlot$6 as c,
-  createSlottable as d,
+  createSlot$4 as d,
   createSlot$3 as e,
   createSlot$2 as f,
-  createSlot$1 as g,
+  createSlottable as g,
   createSlot as h
 };

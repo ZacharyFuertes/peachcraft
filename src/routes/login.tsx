@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { getSupabaseClient } from "@/lib/supabase";
-import { checkEmailVerification } from "@/lib/api/supabase.functions";
+import { checkEmailVerification, checkIsAdmin, saveCartForUser, verifyLoginAttempt, recordLoginFailure } from "@/lib/api/supabase.functions";
+import { getCartItems, makePersistableCartItem } from "@/lib/cart";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
+
+function sanitizeRedirect(path: string): string {
+  if (path.startsWith("//") || path.includes(":")) return "/";
+  if (!path.startsWith("/")) return "/";
+  return path;
+}
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -17,26 +25,32 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [initialCheck, setInitialCheck] = useState(true);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [clientIp, setClientIp] = useState<string | null>(null);
 
-  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? "";
-  const isAdminAttempt = adminEmail && email.trim().toLowerCase() === adminEmail.toLowerCase();
-  const redirectPath = new URLSearchParams(location.searchStr).get("redirect") ?? "/";
+  // Fetch client IP on mount for rate limiting
+  useEffect(() => {
+    fetch("https://api.ipify.org?format=json")
+      .then((r) => r.json())
+      .then((d) => setClientIp(d.ip))
+      .catch(() => {});
+  }, []);
+
+  const redirectPath = sanitizeRedirect(new URLSearchParams(location.searchStr).get("redirect") ?? "/");
 
   // If already logged in, redirect away immediately
   useEffect(() => {
     const check = async () => {
-      const supabase = getSupabaseClient();
-      // Use getSession() first to await async session recovery from localStorage
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        console.log("[Auth:Login] Already logged in as", session.user.email, "— redirecting");
-        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? "";
-        if (adminEmail && session.user.email?.toLowerCase() === adminEmail.toLowerCase()) {
-          navigate({ to: "/admin" });
+      try {
+        const supabase = getSupabaseClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { isAdmin } = await checkIsAdmin({ data: { accessToken: session.access_token } });
+          navigate({ to: isAdmin ? "/admin" : redirectPath as "/" });
         } else {
-          navigate({ to: redirectPath as "/" });
+          setInitialCheck(false);
         }
-      } else {
+      } catch {
         setInitialCheck(false);
       }
     };
@@ -44,73 +58,84 @@ function LoginPage() {
   }, []);
 
   const handleSignIn = async () => {
-    console.log("[Auth:SignIn] ===== SIGN-IN START =====");
-    console.log("[Auth:SignIn] Client type:", typeof window !== "undefined" ? "browser" : "server");
-    console.log("[Auth:SignIn] Cookies before sign-in:", document.cookie);
-    console.log("[Auth:SignIn] Supabase client constructor:", getSupabaseClient().constructor.name);
-
     setError(null);
     setIsLoading(true);
 
-    const supabase = getSupabaseClient();
-    console.log("[Auth:SignIn] Calling supabase.auth.signInWithPassword...");
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    console.log("[Auth:SignIn] signInWithPassword result:", {
-      hasUser: !!data?.user,
-      userId: data?.user?.id ?? null,
-      email: data?.user?.email ?? null,
-      hasSession: !!data?.session,
-      accessTokenPresent: !!data?.session?.access_token,
-      refreshTokenPresent: !!data?.session?.refresh_token,
-      error: authError?.message ?? null,
-    });
-
-    setIsLoading(false);
-
-    if (authError) {
-      console.log("[Auth:SignIn] Auth error:", authError.message);
-      setError(authError.message);
-      return;
-    }
-
-    if (!data.user?.id) {
-      console.log("[Auth:SignIn] No user ID returned");
-      setError("Failed to sign in. Please try again.");
-      return;
-    }
-
-    // Check cookies after sign-in
-    console.log("[Auth:SignIn] Cookies after sign-in:", document.cookie);
-    const sbCookie = document.cookie.split("; ").find((c) => c.startsWith("sb-"));
-    console.log("[Auth:SignIn] Supabase auth cookie found:", !!sbCookie, sbCookie ? sbCookie.slice(0, 50) + "..." : "NONE");
-
-    // Check if email is verified for non-admin users
-    if (!isAdminAttempt) {
+    try {
+      // Verify Turnstile + rate limit before calling Supabase Auth
       try {
-        const verification = await checkEmailVerification({ data: { userId: data.user.id } });
-        console.log("[Auth:SignIn] Email verification check:", verification);
-
-        if (!verification.emailVerified) {
-          console.log("[Auth:SignIn] Email not verified, blocking sign-in");
-          setError(
-            "Your email has not been verified yet. Please check your email for a verification link and try again."
-          );
-          return;
-        }
-      } catch (verifyError) {
-        console.error("[Auth:SignIn] Email verification check failed:", verifyError);
-        // Continue with login even if verification check fails for backward compatibility
+        await verifyLoginAttempt({
+          data: { turnstileToken: turnstileToken ?? undefined, ip: clientIp ?? undefined },
+        });
+      } catch (verifyErr) {
+        setError(verifyErr instanceof Error ? verifyErr.message : "Verification failed. Please try again.");
+        return;
       }
-    }
 
-    const userEmail = data?.user?.email?.toLowerCase() ?? "";
-    console.log("[Auth:SignIn] Sign-in successful, navigating to:", adminEmail && userEmail === adminEmail.toLowerCase() ? "/admin" : redirectPath);
-    if (adminEmail && userEmail === adminEmail.toLowerCase()) {
-      navigate({ to: "/admin" });
-      return;
-    }
+      const supabase = getSupabaseClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
-    navigate({ to: redirectPath as "/" });
+      if (authError) {
+        // Record the failed attempt for rate limiting
+        try {
+          await recordLoginFailure({ data: { ip: clientIp ?? undefined } });
+        } catch {}
+        setError(authError.message);
+        return;
+      }
+
+      if (!data.user?.id) {
+        setError("Failed to sign in. Please try again.");
+        return;
+      }
+
+      const accessToken = data.session?.access_token;
+
+      // Determine admin status using the access token (not cookies, which may
+      // not be fully settled yet after signInWithPassword in some browsers).
+      let isAdmin = false;
+      try {
+        const adminResult = await checkIsAdmin({ data: { accessToken } });
+        isAdmin = adminResult.isAdmin;
+      } catch {
+        // Server function unreachable — proceed as non-admin
+      }
+
+      // Check if email is verified for non-admin users
+      if (!isAdmin) {
+        try {
+          const verification = await checkEmailVerification({ data: { userId: data.user.id } });
+          if (!verification.emailVerified) {
+            setError(
+              "Your email has not been verified yet. Please check your email for a verification link and try again."
+            );
+            return;
+          }
+        } catch {
+          // Continue even if verification check fails
+        }
+      }
+
+      // Merge guest cart to server before navigating
+      if (accessToken) {
+        try {
+          const localItems = getCartItems();
+          if (localItems.length > 0) {
+            await saveCartForUser({
+              data: { items: localItems.map((item) => makePersistableCartItem(item)), accessToken },
+            });
+          }
+        } catch {
+          // Cart merge failure is non-blocking — continue with login
+        }
+      }
+
+      navigate({ to: isAdmin ? "/admin" : redirectPath as "/" });
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -153,13 +178,14 @@ function LoginPage() {
                 </button>
               </div>
 
-              {isAdminAttempt && (
-                <p className="mt-2 text-sm text-[var(--foreground)]/70">
-                  Admin email detected. If these credentials are valid, you will be redirected to the admin dashboard.
-                </p>
-              )}
-
               {error && <p className="rounded-md bg-red-50 p-3 text-sm text-[#f87171]">{error}</p>}
+
+              <div className="flex justify-center">
+                <TurnstileWidget
+                  onToken={setTurnstileToken}
+                  onExpired={() => setTurnstileToken(null)}
+                />
+              </div>
 
               <button
                 type="button"
