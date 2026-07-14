@@ -1949,7 +1949,7 @@ export const getCustomerOrders = createServerFn({ method: "POST" })
         order_items(
           id,qty,price_at_purchase,
           product_id,
-          products(name)
+          products(name,images)
         )
       `)
       .eq("user_id", userId)
@@ -1967,6 +1967,7 @@ export const getCustomerOrders = createServerFn({ method: "POST" })
       items: ((o as any).order_items ?? []).map((item: any) => ({
         product_id: item.product_id,
         name: item.products?.name ?? "Unknown",
+        image: item.products?.images?.[0] ?? null,
         qty: item.qty,
         price_at_purchase: item.price_at_purchase,
       })),
