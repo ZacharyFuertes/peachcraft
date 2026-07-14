@@ -258,7 +258,7 @@ export function SiteHeader() {
 
       <header
         className={cn(
-          "fixed top-0 left-0 right-0 w-full z-50 bg-sage-deep text-background border-b border-white/10 transition-all duration-300",
+          "fixed top-0 left-0 right-0 w-full z-50 bg-white text-gray-900 border-b border-gray-100 transition-all duration-300",
           compact ? "py-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)]" : "py-5 shadow-none"
         )}
       >
@@ -314,7 +314,7 @@ export function SiteHeader() {
                     aria-label={mobileOpen ? "Close menu" : "Open menu"}
                     aria-expanded={mobileOpen}
                     onClick={() => setMobileOpen((v) => !v)}
-                    className="text-background hover:text-blush transition-colors p-1"
+                    className="text-gray-600 hover:text-blush transition-colors p-1"
                   >
                     {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                   </button>
@@ -329,7 +329,7 @@ export function SiteHeader() {
                       className="w-8 h-8 object-contain transition-transform group-hover:rotate-12 duration-300"
                     />
                     <span className="font-display text-xl whitespace-nowrap">
-                      <span className="text-background">Peach</span>{" "}
+                      <span className="text-gray-900">Peach</span>{" "}
                       <span className="text-blush font-bold">Craft</span>
                     </span>
                   </Link>
@@ -342,7 +342,7 @@ export function SiteHeader() {
                     type="button"
                     aria-label="Search"
                     onClick={openSearch}
-                    className="text-background hover:text-blush transition-colors p-1"
+                    className="text-gray-600 hover:text-blush transition-colors p-1"
                   >
                     <Search className="w-6 h-6" />
                   </button>
@@ -351,7 +351,7 @@ export function SiteHeader() {
                   <Link
                     to="/orders"
                     aria-label="My Orders"
-                    className="text-background hover:text-blush transition-colors p-1"
+                    className="text-gray-600 hover:text-blush transition-colors p-1"
                   >
                     <Package className="w-6 h-6" />
                   </Link>
@@ -360,11 +360,11 @@ export function SiteHeader() {
                   <Link
                     to="/cart"
                     aria-label={`Cart, ${itemCount} items`}
-                    className="text-background hover:text-blush transition-colors p-1 relative"
+                    className="text-gray-600 hover:text-blush transition-colors p-1 relative"
                   >
                     <ShoppingBag
                       className={cn(
-                        "w-6 h-6 transition-transform text-background",
+                        "w-6 h-6 transition-transform text-gray-600",
                         cartBouncing && "animate-cart-bounce",
                       )}
                     />
@@ -384,12 +384,12 @@ export function SiteHeader() {
                     className="w-10 h-10 object-contain transition-transform group-hover:rotate-12"
                   />
                   <span className="font-display text-2xl">
-                    <span className="text-background">Peach</span>{" "}
+                    <span className="text-gray-900">Peach</span>{" "}
                     <span className="text-blush font-bold">Craft</span>
                   </span>
                 </Link>
 
-                <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-background rounded-full px-1.5 py-1.5">
+                <nav aria-label="Primary" className="hidden lg:flex items-center gap-1 bg-gray-100 rounded-full px-1.5 py-1.5">
                   {nav.map((item) => {
                     const active = item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
                     return (
@@ -416,7 +416,7 @@ export function SiteHeader() {
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-background/80 hover:text-background transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
                         >
                           {currency}
                           <ChevronDown className="w-3 h-3" />
@@ -460,7 +460,7 @@ export function SiteHeader() {
                     type="button"
                     aria-label="Search"
                     onClick={openSearch}
-                    className="text-background/80 hover:text-background transition-colors shrink-0"
+                    className="text-gray-500 hover:text-gray-800 transition-colors shrink-0"
                   >
                     <Search className="w-5 h-5" />
                   </button>
@@ -472,7 +472,7 @@ export function SiteHeader() {
                         <button
                           type="button"
                           title={userEmail ?? ""}
-                          className="text-background/80 hover:text-background transition-colors cursor-pointer"
+                          className="text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                             <path d="M20 21a8 8 0 0 0-16 0" />
@@ -494,12 +494,7 @@ export function SiteHeader() {
                             Edit Profile
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/orders" className="cursor-pointer">
-                            <Package className="w-4 h-4 mr-2" />
-                            My Orders
-                          </Link>
-                        </DropdownMenuItem>
+
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                           Sign out
@@ -510,7 +505,7 @@ export function SiteHeader() {
                     <Link
                       to="/login"
                       id="header-sign-in-btn"
-                      className="text-background/80 hover:text-background transition-colors shrink-0"
+                      className="text-gray-500 hover:text-gray-800 transition-colors shrink-0"
                       aria-label="Sign In"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -524,7 +519,7 @@ export function SiteHeader() {
                   <Link
                     to="/orders"
                     aria-label="My Orders"
-                    className="text-background/80 hover:text-background transition-colors shrink-0"
+                    className="text-gray-500 hover:text-gray-800 transition-colors shrink-0"
                   >
                     <Package className="w-5 h-5" />
                   </Link>
@@ -533,7 +528,7 @@ export function SiteHeader() {
                   <Link
                     to="/cart"
                     aria-label={`Cart, ${itemCount} items`}
-                    className="text-background/80 hover:text-background transition-colors relative shrink-0"
+                    className="text-gray-500 hover:text-gray-800 transition-colors relative shrink-0"
                   >
                     <ShoppingBag
                       className={cn(
@@ -542,7 +537,7 @@ export function SiteHeader() {
                       )}
                     />
                     {itemCount > 0 && (
-                      <span className="absolute -top-1.5 -right-2 text-[0.6rem] font-semibold text-background/70">
+                      <span className="absolute -top-1.5 -right-2 text-[0.6rem] font-semibold text-gray-500">
                         {itemCount}
                       </span>
                     )}
