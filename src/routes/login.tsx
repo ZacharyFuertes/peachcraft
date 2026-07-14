@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { checkEmailVerification, checkIsAdmin, saveCartForUser, verifyLoginAttempt, recordLoginFailure } from "@/lib/api/supabase.functions";
 import { getCartItems, makePersistableCartItem } from "@/lib/cart";
@@ -24,7 +25,6 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [initialCheck, setInitialCheck] = useState(true);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [clientIp, setClientIp] = useState<string | null>(null);
 
@@ -38,24 +38,14 @@ function LoginPage() {
 
   const redirectPath = sanitizeRedirect(new URLSearchParams(location.searchStr).get("redirect") ?? "/");
 
-  // If already logged in, redirect away immediately
+  const { loading: authLoading, isAuthenticated, session: authSession } = useAuth();
   useEffect(() => {
-    const check = async () => {
-      try {
-        const supabase = getSupabaseClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { isAdmin } = await checkIsAdmin({ data: { accessToken: session.access_token } });
-          navigate({ to: isAdmin ? "/admin" : redirectPath as "/" });
-        } else {
-          setInitialCheck(false);
-        }
-      } catch {
-        setInitialCheck(false);
-      }
-    };
-    check();
-  }, []);
+    if (authLoading) return;
+    if (!isAuthenticated || !authSession) return;
+    checkIsAdmin({ data: { accessToken: authSession.access_token } })
+      .then(({ isAdmin }) => navigate({ to: isAdmin ? "/admin" : redirectPath as "/" }))
+      .catch(() => {});
+  }, [authLoading, isAuthenticated, authSession, navigate]);
 
   const handleSignIn = async () => {
     setError(null);
@@ -141,7 +131,7 @@ function LoginPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-[var(--radius)] bg-[var(--card)] p-8 shadow-card">
-        {initialCheck ? (
+        {authLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>

@@ -15,6 +15,7 @@ import { SiteFooter } from "../components/SiteFooter";
 import { CartToastProvider } from "../components/CartToast";
 import { Toaster } from "../components/ui/sonner";
 import { CurrencyProvider } from "@/lib/currency-context";
+import { AuthProvider } from "@/lib/auth-context";
 
 
 function NotFoundComponent() {
@@ -127,6 +128,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <CurrencyProvider>
       <CartToastProvider>
         {!hideShell && <SiteHeader />}
@@ -139,6 +141,7 @@ function RootComponent() {
         <Toaster richColors />
       </CartToastProvider>
       </CurrencyProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

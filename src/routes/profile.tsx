@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { updateProfile, changePassword } from "@/lib/api/supabase.functions";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 
@@ -30,48 +31,43 @@ function ProfilePage() {
   const [showNew, setShowNew] = useState(false);
   const [pwTurnstileToken, setPwTurnstileToken] = useState<string | null>(null);
 
+  const { loading: authLoading, isAuthenticated, session: authSession } = useAuth();
+
   useEffect(() => {
+    if (authLoading) return;
+    if (!authSession) {
+      navigate({ to: "/login", search: { redirect: "/profile" } });
+      return;
+    }
+
     let mounted = true;
     const supabase = getSupabaseClient();
+    setUserId(authSession.user.id);
+    setAccessToken(authSession.access_token);
+    setEmail(authSession.user.email ?? "");
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        if (!session) {
-          navigate({ to: "/login", search: { redirect: "/profile" } });
-          return;
-        }
-        setUserId(session.user.id);
-        setAccessToken(session.access_token);
-        setEmail(session.user.email ?? "");
-
-        supabase
+    (async () => {
+      try {
+        const { data, error } = await supabase
           .from("profiles")
           .select("username, address, email_verified")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (!mounted) return;
-            if (!error && data) {
-              setUsername(data.username ?? "");
-              setAddress(data.address ?? "");
-              setEmailVerified(data.email_verified ?? false);
-            }
-            setLoading(false);
-          });
-      })
-      .catch(() => {
+          .eq("id", authSession.user.id)
+          .single();
         if (!mounted) return;
-        supabase.auth.signOut();
-        clearAuthCookies();
-        navigate({ to: "/login" });
-      })
-      .finally(() => {
+        if (!error && data) {
+          setUsername(data.username ?? "");
+          setAddress(data.address ?? "");
+          setEmailVerified(data.email_verified ?? false);
+        }
+      } catch {
+        // profile fetch failed — show empty form
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
 
     return () => { mounted = false; };
-  }, []);
+  }, [authLoading, authSession, navigate]);
 
   const handleSaveProfile = async () => {
     setProfileError(null);

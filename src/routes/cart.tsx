@@ -1,9 +1,8 @@
 import { ArrowRight, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency-context";
-import { getSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/cart")({
   component: CartPage,
@@ -13,14 +12,8 @@ function CartPage() {
   const navigate = useNavigate();
   const { items, itemCount, subtotal, updateQuantity, removeItem, clear } = useCart();
   const { formatPrice } = useCurrency();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    const supabase = getSupabaseClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
-    });
-  }, []);
+  const { user: authUser } = useAuth();
+  const userEmail = authUser?.email ?? null;
 
   const shippingFee = 150;
   const taxAmount = 0;

@@ -41,6 +41,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Bell, LogOut, Settings, ShoppingCart, Package, AlertTriangle, LayoutDashboard, Users, BarChart3, Globe, CreditCard, Loader2 } from "lucide-react";
 import { useRouterState, useNavigate, Link } from "@tanstack/react-router";
 import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { getAdminNotifications, type AdminNotificationsResponse } from "@/lib/api/supabase.functions";
 import { toast } from "sonner";
 
@@ -97,26 +98,20 @@ export function Header() {
   const breadcrumbs = getBreadcrumbs(pathname);
   const [searchOpen, setSearchOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; initials: string } | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const supabase = getSupabaseClient();
-      const { data: session } = await supabase.auth.getSession();
-      const sessionUser = session?.session?.user;
-      if (sessionUser) {
-        const name = sessionUser.user_metadata?.full_name ?? sessionUser.email?.split("@")[0] ?? "Admin";
-        const email = sessionUser.email ?? "admin@peachcraft.com";
-        const initials = name
+  const { user: authUser } = useAuth();
+  const sessionUser = authUser;
+  const user = sessionUser
+    ? {
+        name: sessionUser.user_metadata?.full_name ?? sessionUser.email?.split("@")[0] ?? "Admin",
+        email: sessionUser.email ?? "admin@peachcraft.com",
+        initials: (sessionUser.user_metadata?.full_name ?? sessionUser.email?.split("@")[0] ?? "Admin")
           .split(" ")
           .map((n: string) => n[0])
           .join("")
           .slice(0, 2)
-          .toUpperCase();
-        setUser({ name, email, initials });
+          .toUpperCase(),
       }
-    })();
-  }, []);
+    : null;
 
   const { data: notifData } = useQuery<AdminNotificationsResponse>({
     queryKey: ["admin-notifications"],
@@ -128,17 +123,18 @@ export function Header() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
+    const supabase = getSupabaseClient();
     try {
-      const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signOut();
-      clearAuthCookies();
-      if (error) throw error;
-      toast.success("Signed out successfully");
-      navigate({ to: "/" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to sign out");
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("signOut timed out")), 3000)),
+      ]);
+    } catch {
+      // Timeout or network failure — still clear local state
     } finally {
+      clearAuthCookies();
       setSigningOut(false);
+      navigate({ to: "/" });
     }
   };
 

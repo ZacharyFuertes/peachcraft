@@ -5,6 +5,7 @@ import { useCart } from "@/lib/cart";
 import { cn } from "@/lib/utils";
 import logoUrl from "@/assets/icons/logo.svg?url";
 import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { getMyOrders } from "@/lib/api/supabase.functions";
 import { getAutocompleteSuggestions } from "@/lib/api/search.functions";
 import { useCurrency } from "@/lib/currency-context";
@@ -63,7 +64,7 @@ export function SiteHeader() {
     categories: [],
     brands: [],
   });
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { user: authUser, loading: authLoading } = useAuth();
   const { currency, setCurrency, formatPrice } = useCurrency();
   const { location } = useRouterState();
   const navigate = useNavigate();
@@ -84,22 +85,9 @@ export function SiteHeader() {
     closeSearch();
   }, [location.pathname]);
 
-  // ─── Auth state ───────────────────────────────────────────────────────────
+  // ─── Auth-driven order caching ───────────────────────────────────────────
   useEffect(() => {
-    const supabase = getSupabaseClient();
-
-    // Fast session restore: reads localStorage, no network call
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setUserEmail(session?.user?.email ?? null);
-      })
-      .catch(() => {
-        setUserEmail(null);
-      });
-
-    // Real-time sync for login/logout across tabs
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUserEmail(session?.user?.email ?? null);
+    const { data: listener } = getSupabaseClient().auth.onAuthStateChange((event, session) => {
       (async () => {
         try {
           if (session?.user) {
@@ -200,16 +188,20 @@ export function SiteHeader() {
 
   const handleSignOut = async () => {
     const supabase = getSupabaseClient();
-    // Fire server-side revocation (best-effort, don't await — avoids hanging
-    // if the API call fails or is slow, e.g. in Chrome with certain extensions).
-    supabase.auth.signOut().catch(() => {});
-    // Always clear local session immediately regardless of API outcome.
-    await supabase.auth.signOut({ scope: "local" });
-    // Clear any stale auth cookies from the browser so the server's
-    // createServerClient doesn't try to refresh an already-invalidated token.
-    clearAuthCookies();
-    setUserEmail(null);
-    navigate({ to: "/" });
+    try {
+      // Single signOut call with a 3-second timeout. If the network request
+      // hangs (same proxy/extension issue that stalls the refresh endpoint),
+      // we fall through and clear local state unconditionally.
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("signOut timed out")), 3000)),
+      ]);
+    } catch {
+      // Timeout or network failure — still clear local state
+    } finally {
+      clearAuthCookies();
+      navigate({ to: "/" });
+    }
   };
 
   const handleSearchSubmit = (q: string) => {
@@ -240,6 +232,7 @@ export function SiteHeader() {
     prevItemCountRef.current = itemCount;
   }, [itemCount]);
 
+  const userEmail = authUser?.email ?? null;
   const isLoggedIn = !!userEmail;
 
   const hasSuggestions =

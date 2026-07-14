@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { clearAuthCookies, getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { getCustomerOrders, cancelCustomerOrder } from "@/lib/api/supabase.functions";
 import { useCurrency } from "@/lib/currency-context";
 import { Package, XCircle, ArrowLeft, Loader2 } from "lucide-react";
@@ -51,43 +52,31 @@ function OrdersPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
+  const { loading: authLoading, session: authSession } = useAuth();
+
   useEffect(() => {
+    if (authLoading) return;
+    if (!authSession) {
+      navigate({ to: "/login", search: { redirect: "/orders" } });
+      return;
+    }
+
     let mounted = true;
-    const supabase = getSupabaseClient();
+    setAccessToken(authSession.access_token);
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        if (!session) {
-          navigate({ to: "/login", search: { redirect: "/orders" } });
-          return;
-        }
-        setAccessToken(session.access_token);
-
-        getCustomerOrders({ data: { accessToken: session.access_token } })
-          .then((data) => {
-            if (mounted) setOrders(data);
-          })
-          .catch(() => {
-            // AbortError from StrictMode double-mount is expected
-          })
-          .finally(() => {
-            if (mounted) setLoading(false);
-          });
-      })
-      .catch(() => {
-        if (!mounted) return;
-        const supabase = getSupabaseClient();
-        supabase.auth.signOut();
-        clearAuthCookies();
-        navigate({ to: "/login" });
-      })
-      .finally(() => {
+    (async () => {
+      try {
+        const data = await getCustomerOrders({ data: { accessToken: authSession.access_token } });
+        if (mounted) setOrders(data);
+      } catch {
+        // AbortError from StrictMode double-mount is expected
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    })();
 
     return () => { mounted = false; };
-  }, []);
+  }, [authLoading, authSession, navigate]);
 
   const handleCancel = async (orderId: string) => {
     setConfirmId(null);

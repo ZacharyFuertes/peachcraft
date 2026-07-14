@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { createOrder, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
+import { useAuth } from "@/lib/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency-context";
@@ -49,12 +50,12 @@ function CheckoutPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [hasActiveOrder, setHasActiveOrder] = useState<boolean>(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const { loading: authLoading, isAuthenticated, session: authSession, user: authUser } = useAuth();
+  const checkingAuth = authLoading;
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -83,95 +84,52 @@ function CheckoutPage() {
       .catch(() => {});
   }, []);
 
+  // Background fetch: profile + active order (non-blocking)
   useEffect(() => {
+    if (!authSession?.user?.id) return;
     let mounted = true;
-    const supabase = getSupabaseClient();
+    const userId = authSession.user.id;
+    accessTokenRef.current = authSession.access_token;
+    setEmail(authSession.user?.email ?? "");
 
-    // Fast session restore: reads localStorage, no network call
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+    (async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email_verified, username, address")
+          .eq("id", userId)
+          .single();
         if (!mounted) return;
-        if (!session) {
-          setIsAuthenticated(false);
+        if (profile) {
+          setIsVerified(!!profile.email_verified);
+          if (profile.username) setName(profile.username);
+          if (profile.address) setStreet(profile.address);
+        } else {
           setIsVerified(false);
-          setCheckingAuth(false);
-          return;
         }
+      } catch {}
+    })();
 
-        // Session exists — set authenticated immediately (fast path)
-        accessTokenRef.current = session.access_token;
-        setEmail(session.user?.email ?? "");
-        setIsAuthenticated(true);
-        setCheckingAuth(false);
-
-        // Background fetch: profile + active order (non-blocking)
-        const userId = session.user?.id;
-        if (userId) {
-          (async () => {
-            try {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("email_verified, username, address")
-                .eq("id", userId)
-                .single();
-              if (!mounted) return;
-              if (profile) {
-                setIsVerified(!!profile.email_verified);
-                if (profile.username) setName(profile.username);
-                if (profile.address) setStreet(profile.address);
-              } else {
-                setIsVerified(false);
-              }
-            } catch {}
-          })();
-        }
-
-        getUserActiveOrderStatus({ data: { accessToken: session.access_token } })
-          .then((activeStatus) => {
-            if (!mounted) return;
-            setHasActiveOrder(activeStatus.hasActiveOrder);
-            setActiveOrderId(activeStatus.activeOrder?.id ?? null);
-          })
-          .catch(() => {});
-      })
-      .catch(() => {
+    getUserActiveOrderStatus({ data: { accessToken: authSession.access_token } })
+      .then((activeStatus) => {
         if (!mounted) return;
-        setIsAuthenticated(false);
-        setIsVerified(false);
-        setCheckingAuth(false);
-        supabase.auth.signOut();
-        navigate({ to: "/login" });
+        setHasActiveOrder(activeStatus.hasActiveOrder);
+        setActiveOrderId(activeStatus.activeOrder?.id ?? null);
       })
-      .finally(() => {
-        if (mounted) setCheckingAuth(false);
-      });
+      .catch(() => {});
 
-    // Real-time auth sync
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted) return;
-      if (session?.user) {
-        accessTokenRef.current = session.access_token;
-        setIsAuthenticated(true);
-        setEmail(session.user.email ?? "");
-        if (checkingAuth) setCheckingAuth(false);
-      } else {
-        setIsAuthenticated(false);
-        setIsVerified(false);
-        if (checkingAuth) setCheckingAuth(false);
-      }
-    });
-
-    return () => { mounted = false; listener.subscription.unsubscribe(); };
-  }, []);
+    return () => { mounted = false; };
+  }, [authSession]);
 
   useEffect(() => {
-          if (checkingAuth === false && !isAuthenticated) {
+    if (checkingAuth === false && !isAuthenticated) {
       const timer = setTimeout(() => {
         navigate({ to: "/login", search: { redirect: "/checkout" } });
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [checkingAuth, isAuthenticated]);
+  }, [checkingAuth, isAuthenticated, navigate]);
 
   const queryClient = useQueryClient();
 
