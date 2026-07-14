@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { checkEmailVerification, checkIsAdmin, saveCartForUser, verifyLoginAttempt, recordLoginFailure } from "@/lib/api/supabase.functions";
@@ -131,6 +132,13 @@ function LoginPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-[var(--radius)] bg-[var(--card)] p-8 shadow-card">
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/" })}
+          className="inline-flex items-center gap-1 text-sm text-[var(--foreground)]/60 hover:text-[var(--foreground)] transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
         {authLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -138,7 +146,10 @@ function LoginPage() {
         ) : (
           <>
             <div className="mb-8 text-center">
-              <h1 className="text-4xl font-display text-[var(--foreground)]">Peach Craft</h1>
+              <h1 className="text-4xl font-display">
+                <span>Peach</span>{" "}
+                <span className="text-blush font-bold">Craft</span>
+              </h1>
               <p className="mt-2 text-sm text-[var(--foreground)]/70">Sign in to your account.</p>
             </div>
 

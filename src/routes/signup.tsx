@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { signUpWithProfile } from "@/lib/api/supabase.functions";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
@@ -130,6 +131,13 @@ function SignupPage() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-16">
       <div className="w-full max-w-md rounded-[var(--radius)] bg-[var(--card)] p-8 shadow-card">
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/" })}
+          className="inline-flex items-center gap-1 text-sm text-[var(--foreground)]/60 hover:text-[var(--foreground)] transition-colors mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-display text-[var(--foreground)]">Create account</h1>
           <p className="mt-2 text-sm text-[var(--foreground)]/70">Join Peach Craft and start shopping!</p>

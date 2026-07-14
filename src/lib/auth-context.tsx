@@ -68,9 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(valid?.user ?? null);
     });
 
+    // Listen for handleSignOut's manual clear so the context updates
+    // even if the network signOut() call never resolves.
+    const onAuthCleared = () => {
+      if (!mountedRef.current) return;
+      setSession(null);
+      setUser(null);
+    };
+    window.addEventListener("peachcraft-auth-cleared", onAuthCleared);
+
     return () => {
       mountedRef.current = false;
       listener.subscription.unsubscribe();
+      window.removeEventListener("peachcraft-auth-cleared", onAuthCleared);
     };
   }, []);
 

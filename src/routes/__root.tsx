@@ -124,7 +124,9 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
-  const hideShell = router.state.location.pathname.startsWith("/admin");
+  const hideShell = ["/admin", "/login", "/signup"].some((p) =>
+    router.state.location.pathname.startsWith(p),
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -186,22 +186,33 @@ export function SiteHeader() {
     setSuggestions({ products: [], categories: [], brands: [] });
   }, []);
 
-  const handleSignOut = async () => {
-    const supabase = getSupabaseClient();
-    try {
-      // Single signOut call with a 3-second timeout. If the network request
-      // hangs (same proxy/extension issue that stalls the refresh endpoint),
-      // we fall through and clear local state unconditionally.
-      await Promise.race([
-        supabase.auth.signOut(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("signOut timed out")), 3000)),
-      ]);
-    } catch {
-      // Timeout or network failure — still clear local state
-    } finally {
-      clearAuthCookies();
-      navigate({ to: "/" });
+  const handleSignOut = () => {
+    // 1. Clear local session FIRST — synchronously, before any network call.
+    const prefixes = ["sb-", "supabase-"];
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && prefixes.some((p) => key.startsWith(p))) {
+        localStorage.removeItem(key);
+      }
     }
+    clearAuthCookies();
+
+    // 2. Fire best-effort server revocation — detached, no await, no timeout.
+    //    The UI must never wait on this or change behavior based on its outcome.
+    getSupabaseClient().auth.signOut().catch(() => {});
+
+    // 3. Discard the cached client so the next getSupabaseClient() call
+    //    constructs a fresh instance with a fresh internal lock — guaranteeing
+    //    a zombie signOut() from a prior attempt can't poison a later session.
+    delete (window as any).__peachcraft_supabase;
+
+    // 4. Notify AuthProvider to sync its context (since the network signOut
+    //    above may never resolve, we can't rely on onAuthStateChange).
+    window.dispatchEvent(new Event("peachcraft-auth-cleared"));
+
+    // 5. Navigate away. The user is logged out in the UI regardless of
+    //    whether the server revocation call ever completes.
+    navigate({ to: "/" });
   };
 
   const handleSearchSubmit = (q: string) => {
@@ -324,7 +335,7 @@ export function SiteHeader() {
                   </Link>
                 </div>
 
-                {/* Right: Search & Cart */}
+                {/* Right: Search, Orders, Cart */}
                 <div className="flex justify-end items-center gap-4 z-10">
                   {/* Search button */}
                   <button
@@ -335,6 +346,15 @@ export function SiteHeader() {
                   >
                     <Search className="w-6 h-6" />
                   </button>
+
+                  {/* Orders */}
+                  <Link
+                    to="/orders"
+                    aria-label="My Orders"
+                    className="text-background hover:text-blush transition-colors p-1"
+                  >
+                    <Package className="w-6 h-6" />
+                  </Link>
 
                   {/* Cart */}
                   <Link
@@ -499,6 +519,15 @@ export function SiteHeader() {
                       </svg>
                     </Link>
                   )}
+
+                  {/* Orders */}
+                  <Link
+                    to="/orders"
+                    aria-label="My Orders"
+                    className="text-background/80 hover:text-background transition-colors shrink-0"
+                  >
+                    <Package className="w-5 h-5" />
+                  </Link>
 
                   {/* Cart */}
                   <Link

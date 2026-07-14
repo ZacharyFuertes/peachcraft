@@ -13,7 +13,6 @@ function ProfilePage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const [username, setUsername] = useState("");
@@ -43,7 +42,6 @@ function ProfilePage() {
     let mounted = true;
     const supabase = getSupabaseClient();
     setUserId(authSession.user.id);
-    setAccessToken(authSession.access_token);
     setEmail(authSession.user.email ?? "");
 
     (async () => {
@@ -82,13 +80,21 @@ function ProfilePage() {
       return;
     }
 
+    // Read the access token fresh from context at call time, not from a
+    // value captured at mount. If the token is null the user has been
+    // signed out; show a clear re-auth prompt rather than a raw API error.
+    if (!authSession?.access_token) {
+      setProfileError("Session expired. Please sign in again.");
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await updateProfile({
         data: {
           username: username.trim(),
           address: address.trim(),
-          accessToken: accessToken ?? undefined,
+          accessToken: authSession.access_token,
           turnstileToken: profileTurnstileToken ?? undefined,
         },
       });
@@ -110,10 +116,15 @@ function ProfilePage() {
       return;
     }
 
+    if (!authSession?.access_token) {
+      setPasswordError("Session expired. Please sign in again.");
+      return;
+    }
+
     setChangingPassword(true);
     try {
       const result = await changePassword({
-        data: { newPassword, turnstileToken: pwTurnstileToken ?? undefined, accessToken: accessToken ?? undefined },
+        data: { newPassword, turnstileToken: pwTurnstileToken ?? undefined, accessToken: authSession.access_token },
       });
       setPasswordMessage(result.message);
       setNewPassword("");

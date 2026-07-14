@@ -121,21 +121,32 @@ export function Header() {
 
   const totalCount = notifData?.totalCount ?? 0;
 
-  const handleSignOut = async () => {
-    setSigningOut(true);
-    const supabase = getSupabaseClient();
-    try {
-      await Promise.race([
-        supabase.auth.signOut(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("signOut timed out")), 3000)),
-      ]);
-    } catch {
-      // Timeout or network failure — still clear local state
-    } finally {
-      clearAuthCookies();
-      setSigningOut(false);
-      navigate({ to: "/" });
+  const handleSignOut = () => {
+    // 1. Clear local session FIRST — synchronously, before any network call.
+    const prefixes = ["sb-", "supabase-"];
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && prefixes.some((p) => key.startsWith(p))) {
+        localStorage.removeItem(key);
+      }
     }
+    clearAuthCookies();
+
+    // 2. Fire best-effort server revocation — detached, no await, no timeout.
+    //    The UI must never wait on this or change behavior based on its outcome.
+    getSupabaseClient().auth.signOut().catch(() => {});
+
+    // 3. Discard the cached client so the next getSupabaseClient() call
+    //    constructs a fresh instance with a fresh internal lock.
+    delete (window as any).__peachcraft_supabase;
+
+    // 4. Notify AuthProvider to sync its context.
+    window.dispatchEvent(new Event("peachcraft-auth-cleared"));
+
+    // 5. Navigate away — the user is always logged out locally regardless
+    //    of whether the server revocation call ever completes.
+    setSigningOut(false);
+    navigate({ to: "/" });
   };
 
   return (
