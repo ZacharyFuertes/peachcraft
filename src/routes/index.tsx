@@ -105,7 +105,7 @@ function HomePage() {
       </section>
 
       {/* WHY PEACH CRAFT (SUPERPOWERS) */}
-      <section className="bg-cream py-16 sm:py-24 border-b border-border/40">
+      <section className="bg-white py-16 sm:py-24 border-b border-border/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn>
             <div className="text-center max-w-2xl mx-auto space-y-3">
@@ -140,7 +140,7 @@ function HomePage() {
       </section>
 
       {/* PEAS OF MIND / SPECS SECTION */}
-      <section className="bg-background py-16 sm:py-24 border-b border-border/40">
+      <section className="bg-white py-16 sm:py-24 border-b border-border/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 items-start">
             <FadeIn className="lg:sticky lg:top-24 space-y-4">
@@ -184,7 +184,7 @@ function HomePage() {
       </section>
 
       {/* FEATURED PRODUCTS */}
-      <section className="bg-background py-16 sm:py-24">
+      <section className="bg-white py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn>
             <div className="text-center space-y-3">
@@ -238,7 +238,7 @@ function HomePage() {
       </section>
 
       {/* FINAL CALL TO ACTION CARD */}
-      <section className="bg-background py-16 sm:py-20">
+      <section className="bg-white py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn>
             <div className="bg-blush text-blush-foreground rounded-2xl sm:rounded-[2.5rem] p-6 sm:p-12 lg:p-16 shadow-soft grid lg:grid-cols-[1.2fr_1fr] gap-6 sm:gap-8 items-center relative overflow-hidden">
