@@ -196,6 +196,8 @@ export function SiteHeader() {
       }
     }
     clearAuthCookies();
+    // Clear the admin token cookie used by adminMiddleware
+    document.cookie = "sb-admin-token=; path=/; max-age=0; SameSite=Lax";
 
     // 2. Fire best-effort server revocation — detached, no await, no timeout.
     //    The UI must never wait on this or change behavior based on its outcome.

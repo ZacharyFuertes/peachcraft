@@ -8,6 +8,16 @@ import { checkEmailVerification, checkIsAdmin, saveCartForUser, verifyLoginAttem
 import { getCartItems, makePersistableCartItem } from "@/lib/cart";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 
+/** Write the admin access token into a session cookie so the server middleware can read it. */
+function setAdminTokenCookie(token: string) {
+  document.cookie = `sb-admin-token=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
+}
+
+/** Clear the admin token cookie (e.g. on logout or auth failure). */
+function clearAdminTokenCookie() {
+  document.cookie = `sb-admin-token=; path=/; max-age=0; SameSite=Lax`;
+}
+
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
@@ -44,8 +54,18 @@ function LoginPage() {
     if (authLoading) return;
     if (!isAuthenticated || !authSession) return;
     checkIsAdmin({ data: { accessToken: authSession.access_token } })
-      .then(({ isAdmin }) => navigate({ to: isAdmin ? "/admin" : redirectPath as "/" }))
-      .catch(() => {});
+      .then(({ isAdmin }) => {
+        if (isAdmin) {
+          setAdminTokenCookie(authSession.access_token);
+          navigate({ to: "/admin" });
+        } else {
+          navigate({ to: redirectPath as "/" });
+        }
+      })
+      .catch(() => {
+        // checkIsAdmin failed — clear any stale cookie so the user sees the login form
+        clearAdminTokenCookie();
+      });
   }, [authLoading, isAuthenticated, authSession, navigate]);
 
   const handleSignIn = async () => {
@@ -119,6 +139,13 @@ function LoginPage() {
         } catch {
           // Cart merge failure is non-blocking — continue with login
         }
+      }
+
+      if (isAdmin && accessToken) {
+        // Write the token to a cookie so adminMiddleware can verify it on server-side requests.
+        // The browser Supabase client uses localStorage (not HTTP cookies), so without this
+        // the server middleware would always see an empty cookie jar and redirect to /login.
+        setAdminTokenCookie(accessToken);
       }
 
       navigate({ to: isAdmin ? "/admin" : redirectPath as "/" });
