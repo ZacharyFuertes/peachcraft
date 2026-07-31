@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { createOrder, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
+import { createOrder, getCustomerOrderById, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
 import { useAuth } from "@/lib/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCart } from "@/lib/cart";
@@ -28,6 +28,9 @@ const shippingSchema = z.object({
 
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    orderId: typeof search.orderId === "string" ? search.orderId : undefined,
+  }),
 });
 
 function generateDisplayOrderId(orderUuid: string): string {
@@ -39,6 +42,8 @@ function generateDisplayOrderId(orderUuid: string): string {
 
 function CheckoutPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const orderIdQuery = search.orderId;
   const { items, subtotal, itemCount, clear } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,13 +51,23 @@ function CheckoutPage() {
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("");
   const [zip, setZip] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash_on_delivery");
+  const [paymentMethod, setPaymentMethod] = useState("gcash");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [isVerified, setIsVerified] = useState<boolean | null>(null);
   const [hasActiveOrder, setHasActiveOrder] = useState<boolean>(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [resumeOrder, setResumeOrder] = useState<{
+    id: string;
+    status: string;
+    total_amount: number;
+    payment_method: string | null;
+    payment_status: string | null;
+    shipping_address: Record<string, string> | null;
+  } | null>(null);
+  const [resumeOrderLoaded, setResumeOrderLoaded] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const { loading: authLoading, isAuthenticated, session: authSession, user: authUser } = useAuth();
   const checkingAuth = authLoading;
@@ -118,6 +133,27 @@ function CheckoutPage() {
         setActiveOrderId(activeStatus.activeOrder?.id ?? null);
       })
       .catch(() => {});
+
+    if (orderIdQuery) {
+      getCustomerOrderById({ data: { accessToken: authSession.access_token, orderId: orderIdQuery } })
+        .then((order) => {
+          if (!mounted) return;
+          setResumeOrder(order);
+          setResumeOrderLoaded(true);
+          if (order.payment_method === "gcash" && order.payment_status === "pending") {
+            setPaymentMethod("gcash");
+            setOrderId(order.id);
+            setDisplayOrderId(generateDisplayOrderId(order.id));
+            setStep(3);
+          }
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setResumeError("Unable to resume this order. Please proceed from your order history.");
+          setResumeOrderLoaded(true);
+        });
+    }
+
 
     return () => { mounted = false; };
   }, [authSession]);
@@ -223,7 +259,7 @@ function CheckoutPage() {
     }
 
     try {
-      await createOrderMutation.mutateAsync({
+      const res = await createOrderMutation.mutateAsync({
         items: items.map((item) => ({
           product_id: item.product_id,
           qty: item.qty,
@@ -240,6 +276,10 @@ function CheckoutPage() {
         total_amount: totalAmount,
         payment_method: result.data.payment_method,
       });
+      if (res && res.id) {
+        setOrderId(res.id);
+        setDisplayOrderId(generateDisplayOrderId(res.id));
+      }
       return true;
     } catch (error) {
       setFormErrors({ general: error instanceof Error ? error.message : "Unable to place order." });
@@ -328,7 +368,7 @@ function CheckoutPage() {
     }
   };
 
-  if (checkingAuth) {
+  if (checkingAuth || (orderIdQuery && !resumeOrderLoaded && isAuthenticated)) {
     return (
       <section className="bg-cream py-16">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
@@ -378,6 +418,13 @@ function CheckoutPage() {
     );
   }
 
+  const canResumeOrder = Boolean(
+    resumeOrder &&
+    resumeOrder.payment_method === "gcash" &&
+    resumeOrder.payment_status === "pending" &&
+    resumeOrder.status === "pending",
+  );
+
   if (!isVerified) {
     return (
       <section className="bg-cream py-16">
@@ -397,7 +444,7 @@ function CheckoutPage() {
     );
   }
 
-  if (hasActiveOrder) {
+  if (hasActiveOrder && !canResumeOrder) {
     return (
       <section className="bg-cream py-16">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
@@ -504,47 +551,29 @@ function CheckoutPage() {
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Checkout</span>
                   <h1 className="mt-3 font-display text-4xl text-brown">Payment method</h1>
-                  <p className="mt-1 text-foreground/75 text-sm">Choose how you'd like to pay.</p>
+                  
                 </div>
                 <div className="space-y-4">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod("cash_on_delivery")}
-                    className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
-                      paymentMethod === "cash_on_delivery" ? "border-wine bg-wine/5" : "border-border bg-background hover:border-wine/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-foreground">Cash on Delivery</p>
-                        <p className="text-sm text-foreground/70 mt-1">Pay when you receive your order</p>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 grid place-items-center ${
-                        paymentMethod === "cash_on_delivery" ? "border-wine" : "border-border"
-                      }`}>
-                        {paymentMethod === "cash_on_delivery" && <div className="w-2.5 h-2.5 rounded-full bg-wine" />}
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setPaymentMethod("gcash")}
-                    className={`w-full text-left rounded-2xl border-2 p-5 transition-all ${
-                      paymentMethod === "gcash" ? "border-wine bg-wine/5" : "border-border bg-background hover:border-wine/50"
+                    className={`w-full text-left rounded-2xl border-2 p-5 transition-all flex items-center justify-between ${
+                      paymentMethod === "gcash" ? "border-sage bg-sage/5" : "border-border bg-background hover:border-sage/50"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-foreground">GCash</p>
-                        <p className="text-sm text-foreground/70 mt-1">Pay via GCash and upload payment proof</p>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 grid place-items-center ${
-                        paymentMethod === "gcash" ? "border-wine" : "border-border"
-                      }`}>
-                        {paymentMethod === "gcash" && <div className="w-2.5 h-2.5 rounded-full bg-wine" />}
-                      </div>
+                    <div>
+                      <p className="font-semibold text-foreground">GCash</p>
+                      <p className="text-sm text-foreground/70 mt-1">Pay via GCash and upload payment proof</p>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 grid place-items-center ${
+                      paymentMethod === "gcash" ? "border-sage bg-white" : "border-border bg-white"
+                    }`}>
+                      {paymentMethod === "gcash" && <div className="w-2.5 h-2.5 rounded-full bg-sage" />}
                     </div>
                   </button>
+                </div>
+                <div className="rounded-3xl border border-border bg-background p-5 text-sm text-foreground/75">
+                  Hello! 😊 Thank you for your interest. We'd just like to let you know that, for now, our only available payment method is <strong>GCash</strong>. We appreciate your understanding. We hope to offer additional payment options in the future to make transactions more convenient. Thank you for your support!
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -557,11 +586,13 @@ function CheckoutPage() {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (paymentMethod === "gcash") {
+                      try {
                         const ok = await handlePlaceOrder();
                         if (!ok) return;
+                        setStep(3);
+                      } catch (err) {
+                        setFormErrors({ general: err instanceof Error ? err.message : "Unable to continue." });
                       }
-                      setStep(3);
                     }}
                     disabled={createOrderMutation.isPending}
                     className="inline-flex flex-1 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft btn-bounce-hover hover:bg-primary/90 disabled:opacity-50"

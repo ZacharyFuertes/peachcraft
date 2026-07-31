@@ -379,7 +379,7 @@ function ProductDetailPage() {
                   type="button"
                   onClick={() => {
                     handleAddToCart();
-                    navigate({ to: "/checkout" });
+                    navigate({ to: "/checkout", search: { orderId: undefined } });
                   }}
                   className="w-full flex items-center justify-center gap-2.5 rounded-full px-6 py-4 text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-all btn-bounce-hover shadow-soft"
                 >

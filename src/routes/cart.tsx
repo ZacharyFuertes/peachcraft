@@ -173,7 +173,7 @@ function CartPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => navigate({ to: "/checkout" })}
+                  onClick={() => navigate({ to: "/checkout", search: { orderId: undefined } })}
                   className="w-full rounded-full bg-gray-900 px-5 py-3 text-sm font-medium text-white shadow-[0_2px_12px_-3px_rgba(0,0,0,0.25)] hover:bg-gray-800 transition-colors"
                 >
                   Proceed to checkout
