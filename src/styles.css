@@ -50,6 +50,7 @@
   --color-sage: var(--sage);
   --color-sage-deep: var(--sage-deep);
   --color-brown: var(--brown);
+  --color-wine: var(--wine);
 
   --font-display: "Fraunces", "DM Serif Display", ui-serif, Georgia, serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
@@ -87,6 +88,7 @@
 
   --cream: oklch(0.97 0.025 80);
   --brown: oklch(0.34 0.07 55);
+  --wine: oklch(0.45 0.14 20);
 
   --muted: oklch(0.96 0.02 80);
   --muted-foreground: oklch(0.42 0.04 55);
@@ -134,6 +136,7 @@
   --sage: oklch(0.5 0.06 150);
   --sage-deep: oklch(0.18 0.03 150);
   --brown: oklch(0.85 0.04 55);
+  --wine: oklch(0.7 0.14 20);
 
   --sidebar: oklch(0.22 0.03 150);
   --sidebar-foreground: oklch(0.96 0.02 80);

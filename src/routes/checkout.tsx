@@ -335,8 +335,13 @@ function CheckoutPage() {
       setFormErrors({ screenshot: "Please upload a screenshot of your payment." });
       return;
     }
-    if (!gcashEmail.trim()) {
+    const email = gcashEmail.trim();
+    if (!email) {
       setFormErrors({ gcashEmail: "Please enter your email address." });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setFormErrors({ gcashEmail: "Please enter a valid email address." });
       return;
     }
 
@@ -379,7 +384,7 @@ function CheckoutPage() {
         order_id: orderId,
         gcash_reference_number: gcashRefNo.trim(),
         screenshot_url: screenshotUrl,
-        customer_email: gcashEmail.trim(),
+        customer_email: email,
       });
     } catch (err) {
       setFormErrors({ general: err instanceof Error ? err.message : "Failed to submit payment proof." });
