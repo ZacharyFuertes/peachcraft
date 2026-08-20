@@ -5,12 +5,19 @@ import { z } from "zod";
 import { createOrder, getCustomerOrderById, getUserActiveOrderStatus, uploadPaymentProof, submitGCashProof, checkDuplicateReference, validateCartItems } from "@/lib/api/supabase.functions";
 import { useAuth } from "@/lib/auth-context";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getStoreDetails } from "@/lib/api/storeDetails.functions";
 import { useCart } from "@/lib/cart";
 import { useCurrency } from "@/lib/currency-context";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { ArrowLeft, CheckCircle, Copy, Loader2, Upload } from "lucide-react";
 
-const GCASH_CONFIG = {
+type GcashConfig = {
+  number: string;
+  name: string;
+  qrCodeSrc: string;
+};
+
+const DEFAULT_GCASH_CONFIG: GcashConfig = {
   number: "0917 123 4567",
   name: "Peach Craft PH",
   qrCodeSrc: "/images/gcash-qr-placeholder.png",
@@ -91,12 +98,31 @@ function CheckoutPage() {
   const totalAmount = subtotal + shippingFee + taxAmount;
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [clientIp, setClientIp] = useState<string | null>(null);
+  const [gcashConfig, setGcashConfig] = useState<GcashConfig>(DEFAULT_GCASH_CONFIG);
 
   useEffect(() => {
     fetch("https://api.ipify.org?format=json")
       .then((r) => r.json())
       .then((d) => setClientIp(d.ip))
       .catch(() => {});
+  }, []);
+
+  // Load admin-managed GCash payment details (fallback to defaults)
+  useEffect(() => {
+    let mounted = true;
+    getStoreDetails()
+      .then((details) => {
+        if (!mounted || !details) return;
+        setGcashConfig((config) => ({
+          number: details.gcash_number || config.number,
+          name: details.gcash_account_name || config.name,
+          qrCodeSrc: details.gcash_qr || config.qrCodeSrc,
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Background fetch: profile + active order (non-blocking)
@@ -649,7 +675,7 @@ function CheckoutPage() {
                   <div className="flex flex-col sm:flex-row gap-6 items-start">
                     <div className="w-40 h-40 bg-blush rounded-xl flex items-center justify-center border-2 border-dashed border-wine/30 shrink-0">
                       <img
-                        src={GCASH_CONFIG.qrCodeSrc}
+                        src={gcashConfig.qrCodeSrc}
                         alt="GCash QR Code"
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
@@ -661,11 +687,11 @@ function CheckoutPage() {
                     <div className="space-y-3 flex-1">
                       <div>
                         <p className="text-xs text-foreground/50 uppercase tracking-wide">GCash Number</p>
-                        <p className="text-lg font-bold text-wine">{GCASH_CONFIG.number}</p>
+                        <p className="text-lg font-bold text-wine">{gcashConfig.number}</p>
                       </div>
                       <div>
                         <p className="text-xs text-foreground/50 uppercase tracking-wide">Account Name</p>
-                        <p className="font-semibold">{GCASH_CONFIG.name}</p>
+                        <p className="font-semibold">{gcashConfig.name}</p>
                       </div>
                       <div>
                         <p className="text-xs text-foreground/50 uppercase tracking-wide">Amount to Pay</p>

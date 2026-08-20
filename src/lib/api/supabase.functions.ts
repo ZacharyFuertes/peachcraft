@@ -1252,14 +1252,18 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       throw new Error("Order not found");
     }
 
-    const { data: user, error: userError } = await supabase
-      .from("profiles")
-      .select("username,email")
-      .eq("id", order.user_id)
-      .single();
+    let user: { username: string | null; email: string | null } | null = null;
+    if (order.user_id) {
+      const { data: profileRow, error: userError } = await supabase
+        .from("profiles")
+        .select("username,email")
+        .eq("id", order.user_id)
+        .maybeSingle();
 
-    if (userError) {
-      throw userError;
+      if (userError) {
+        throw userError;
+      }
+      user = profileRow;
     }
 
     const { data: items, error: itemsError } = await supabase
