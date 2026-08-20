@@ -1252,14 +1252,18 @@ export const getOrderDetails = createServerFn({ method: "GET" })
       throw new Error("Order not found");
     }
 
-    const { data: user, error: userError } = await supabase
-      .from("profiles")
-      .select("username,email")
-      .eq("id", order.user_id)
-      .single();
+    let user: { username: string | null; email: string | null } | null = null;
+    if (order.user_id) {
+      const { data: profileRow, error: userError } = await supabase
+        .from("profiles")
+        .select("username,email")
+        .eq("id", order.user_id)
+        .maybeSingle();
 
-    if (userError) {
-      throw userError;
+      if (userError) {
+        throw userError;
+      }
+      user = profileRow;
     }
 
     const { data: items, error: itemsError } = await supabase
@@ -1945,7 +1949,7 @@ export const getCustomerOrders = createServerFn({ method: "POST" })
     const { data: orders, error } = await supabase
       .from("orders")
       .select(`
-        id,status,total_amount,created_at,shipping_address,payment_method,
+        id,status,total_amount,created_at,shipping_address,payment_method,payment_status,
         order_items(
           id,qty,price_at_purchase,
           product_id,
@@ -1964,6 +1968,7 @@ export const getCustomerOrders = createServerFn({ method: "POST" })
       created_at: o.created_at,
       shipping_address: o.shipping_address as Record<string, string> | null,
       payment_method: o.payment_method,
+      payment_status: o.payment_status,
       items: ((o as any).order_items ?? []).map((item: any) => ({
         product_id: item.product_id,
         name: item.products?.name ?? "Unknown",
@@ -1972,6 +1977,53 @@ export const getCustomerOrders = createServerFn({ method: "POST" })
         price_at_purchase: item.price_at_purchase,
       })),
     }));
+  });
+
+export const getCustomerOrderById = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      accessToken: z.string().optional(),
+      orderId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const authClient = getSupabaseServer(undefined, { authOnly: true });
+
+    let userId: string | null = null;
+    if (data.accessToken) {
+      const tokenResult = await authClient.auth.getUser(data.accessToken);
+      if (tokenResult.error) {
+        throw new Error("Authentication required");
+      }
+      userId = tokenResult.data?.user?.id ?? null;
+    }
+    if (!userId) {
+      throw new Error("Authentication required");
+    }
+
+    const supabase = getSupabaseServer();
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id,status,total_amount,payment_method,payment_status,shipping_address,user_id")
+      .eq("id", data.orderId)
+      .single();
+
+    if (orderError || !order) {
+      throw orderError ?? new Error("Order not found.");
+    }
+
+    if (order.user_id !== userId) {
+      throw new Error("You can only view your own order.");
+    }
+
+    return {
+      id: order.id,
+      status: order.status,
+      total_amount: order.total_amount,
+      payment_method: order.payment_method,
+      payment_status: order.payment_status,
+      shipping_address: order.shipping_address as Record<string, string> | null,
+    };
   });
 
 export const cancelCustomerOrder = createServerFn({ method: "POST" })

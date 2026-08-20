@@ -138,29 +138,6 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <label htmlFor="region" className="text-[11px] uppercase tracking-[0.24em] text-background/70">
-                Country/region
-              </label>
-              <div className="relative w-full sm:w-60">
-                <select
-                  id="region"
-                  value={selectedRegion.value}
-                  onChange={handleRegionChange}
-                  className="w-full appearance-none rounded-full border border-white/20 bg-white/10 px-3 py-2 pr-9 text-sm text-background shadow-soft focus:outline-none focus:ring-2 focus:ring-blush"
-                >
-                  {regionOptions.map((option) => (
-                    <option key={option.value} value={option.value} className="text-slate-900">
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-background/70" />
-              </div>
-            </div>
-            <p className="text-[11px] text-background/70">
-              Pricing preview: {selectedRegion.code} {selectedRegion.symbol}
-            </p>
           </div>
           <form
             onSubmit={(e) => {

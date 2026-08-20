@@ -1,6 +1,19 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { redirect } from "@tanstack/react-router";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+
+/** Parse a raw Cookie header into name→value pairs. */
+function parseCookieHeader(header: string): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    const name = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (name) map[name] = decodeURIComponent(value);
+  }
+  return map;
+}
 
 export const adminMiddleware = createMiddleware({
   type: "request",
@@ -14,31 +27,25 @@ export const adminMiddleware = createMiddleware({
     throw redirect({ to: "/login", search: { redirect: url.pathname } as any });
   }
 
-  const cookiesToSet: { name: string; value: string; options: Record<string, any> }[] = [];
+  // The browser Supabase client stores sessions in localStorage (not HTTP cookies),
+  // so the old createServerClient / cookie approach always got an empty cookie jar.
+  // Instead, the login page writes a lightweight "sb-admin-token" cookie containing
+  // the access_token, and we verify it here with supabase.auth.getUser(token).
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const cookies = parseCookieHeader(cookieHeader);
+  const accessToken = cookies["sb-admin-token"] ?? "";
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        const cookie = request.headers.get("cookie") ?? "";
-        if (!cookie) return [];
-        return cookie.split("; ").filter(Boolean).map((c) => {
-          const eq = c.indexOf("=");
-          if (eq === -1) return { name: c.trim(), value: "" };
-          return { name: c.slice(0, eq).trim(), value: c.slice(eq + 1).trim() };
-        });
-      },
-      setAll(cookies) {
-        cookiesToSet.push(...cookies);
-      },
-    },
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-    },
+  if (!accessToken) {
+    throw redirect({ to: "/login", search: { redirect: url.pathname } as any });
+  }
+
+  // Use a plain createClient (anon key) and verify the JWT directly.
+  // getUser(jwt) validates the token server-side without needing cookies.
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
   });
 
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser(accessToken);
   const user = data?.user;
 
   if (error || !user) {
@@ -50,23 +57,5 @@ export const adminMiddleware = createMiddleware({
     throw redirect({ to: "/" });
   }
 
-  const result = await next();
-
-  if (cookiesToSet.length > 0 && result?.response) {
-    const response = result.response as Response;
-    for (const { name, value, options } of cookiesToSet) {
-      let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
-      if (options.path) cookieStr += `; Path=${options.path}`;
-      if (options.maxAge !== undefined) cookieStr += `; Max-Age=${options.maxAge}`;
-      if (options.sameSite) {
-        const v = typeof options.sameSite === "boolean" ? "strict" : options.sameSite;
-        cookieStr += `; SameSite=${v}`;
-      }
-      if (options.secure) cookieStr += `; Secure`;
-      if (options.httpOnly) cookieStr += `; HttpOnly`;
-      response.headers.append("Set-Cookie", cookieStr);
-    }
-  }
-
-  return result;
+  return next();
 });

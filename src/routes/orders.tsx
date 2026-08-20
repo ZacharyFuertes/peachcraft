@@ -24,6 +24,7 @@ type Order = {
   created_at: string;
   shipping_address: Record<string, string> | null;
   payment_method: string | null;
+  payment_status: string | null;
   items: OrderItem[];
 };
 
@@ -376,7 +377,7 @@ function OrdersPage() {
                   )}
 
                   {/* Cancel button — pending only */}
-                  {order.status === "pending" && (
+                  {order.status === "pending" && order.payment_method === "gcash" && order.payment_status === "pending" && (
                     <div>
                       {confirmId === order.id ? (
                         <div className="flex items-center gap-3 rounded-xl bg-red-50 px-4 py-3">
@@ -398,13 +399,22 @@ function OrdersPage() {
                           </button>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmId(order.id)}
-                          className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
-                        >
-                          <XCircle className="w-4 h-4" /> Cancel Order
-                        </button>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => navigate({ to: "/checkout", search: { orderId: order.id } })}
+                            className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Continue to Check out
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmId(order.id)}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
+                          >
+                            <XCircle className="w-4 h-4" /> Cancel Order
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}

@@ -15,6 +15,9 @@ export type StoreDetails = {
   twitter_url: string | null;
   footer_text: string | null;
   hero_banner: string | null;
+  gcash_number: string | null;
+  gcash_account_name: string | null;
+  gcash_qr: string | null;
 };
 
 export const uploadStoreImage = createServerFn({ method: "POST" })
@@ -94,6 +97,9 @@ export const updateStoreDetails = createServerFn({ method: "POST" })
       twitter_url: z.string().nullable(),
       footer_text: z.string().nullable(),
       hero_banner: z.string().nullable(),
+      gcash_number: z.string().nullable(),
+      gcash_account_name: z.string().nullable(),
+      gcash_qr: z.string().nullable(),
       accessToken: z.string().optional(),
     }),
   )
@@ -114,6 +120,9 @@ export const updateStoreDetails = createServerFn({ method: "POST" })
       twitter_url: data.twitter_url,
       footer_text: data.footer_text,
       hero_banner: data.hero_banner,
+      gcash_number: data.gcash_number,
+      gcash_account_name: data.gcash_account_name,
+      gcash_qr: data.gcash_qr,
     };
 
     const { error } = await supabase.from("website_settings").upsert(payload, { onConflict: "id" });
